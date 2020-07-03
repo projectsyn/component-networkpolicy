@@ -1,3 +1,3 @@
 parameters:
   networkpolicy:
-    namespace: syn-networkpolicy
+    allowNamespaceLabels: []
