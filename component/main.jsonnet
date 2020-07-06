@@ -52,7 +52,26 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
   },
 };
 
+local pruneConfig = espejo.syncConfig('networkpolicies-prune-ignored') {
+  spec: {
+    namespaceSelector: {
+      matchNames: params.ignoredNamespaces,
+    },
+    deleteItems: [
+      {
+        apiVersion: 'networking.k8s.io/v1',
+        kind: 'NetworkPolicy',
+        name: name,
+
+      }
+      for name in ['allow-from-other-namespaces', 'allow-from-same-namespace']
+    ],
+  },
+};
+
+
 // Define outputs below
 {
-  networkpolicies: syncConfig,
+  [if std.length(params.ignoredNamespaces) > 0 then '05_prune']: pruneConfig,
+  '10_networkpolicies': syncConfig,
 }
