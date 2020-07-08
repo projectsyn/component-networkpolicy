@@ -1,3 +1,34 @@
 = NetworkPolicy: A Commodore component to manage NetworkPolicy
 
-{doctitle} is a Commodore component for Managing NetworkPolicy.
+{doctitle} provides the tooling to manage a set of NetworkPolicies in all the namespaces on a cluster.
+The intention is to create a safe default.
+This is done by isolating the network of a namespace.
+The created policies will allow only traffic from pods within the same network.
+They will also allow traffic from selected namespaces.
+The later is needed for ingress and monitoring to work.
+
+This component assumes, that a cluster was set up with a SDN that supports NetworkPolicies.
+
+An Espejo SyncConfig is used to create the policies.
+The SyncConfig is configured to ignore namespaces having the label `espejo.syn.tools/no-network-policies` (the value does not matter).
+
+[IMPORTANT]
+====
+The content of the created NetworkPolicies is enforced.
+Changes from other sources will be overwritten.
+If changes to the default policies are required, add the ignore label and create them on your own.
+====
+
+This component also allows to exclude a set of namespaces.
+Those namespaces will receive the `espejo.syn.tools/no-network-policies=true` label.
+The default NetworkPolicies will also be actively removed from those namespaces.
+
+[CAUTION]
+====
+Removing the NetworkPolicies from excluded namespaces is done by name.
+The names removed are `allow-from-same-namespace` and `allow-from-other-namespaces`.
+If similar rules are created in those namespaces, they must have different names.
+Otherwise, they will be removed.
+====
+
+See also the xref:references/parameters.adoc[parameters reference].
