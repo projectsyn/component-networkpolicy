@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 
-- …
+- Application of default NetworkPolicies ([#1])
 
-[Unreleased]: https://github.com/projectsyn/component-networkpolicy/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/projectsyn/component-networkpolicy/compare/dba1d0f...HEAD
+[#1]: https://github.com/projectsyn/component-networkpolicy/pull/1
