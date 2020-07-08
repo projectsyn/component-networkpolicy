@@ -60,12 +60,12 @@ local pruneConfig = espejo.syncConfig('networkpolicies-prune-ignored') {
     },
     deleteItems: [
       {
-        apiVersion: 'networking.k8s.io/v1',
-        kind: 'NetworkPolicy',
-        name: name,
+        apiVersion: policy.apiVersion,
+        kind: policy.kind,
+        name: policy.metadata.name,
 
       }
-      for name in ['allow-from-other-namespaces', 'allow-from-same-namespace']
+      for policy in syncConfig.spec.syncItems
     ],
   },
 };
