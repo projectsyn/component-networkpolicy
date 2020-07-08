@@ -32,7 +32,7 @@ default:: empty list
 
 A list of namespace names where no default NetworkPolicies will be created.
 All namespaces in this list will receive the label `espejo.syn.tools/no-network-policies=true`.
-Default NetworkPolicies will also be activly removed from thos namesapces.
+Default NetworkPolicies will also be actively removed from those namespaces.
 
 [NOTE]
 ====

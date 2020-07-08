@@ -5,9 +5,9 @@ The intention is to create a safe default.
 This is done by isolating the network of a namespace.
 The created policies will allow only traffic from pods within the same network.
 They will also allow traffic from selected namespaces.
-The later is needed for ingress and monitoring to work.
+The latter is needed for ingress and monitoring to work.
 
-This component assumes, that a cluster was set up with a SDN that supports NetworkPolicies.
+This component assumes that a cluster was set up with a https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins[network plugin] that supports NetworkPolicies.
 
 An Espejo SyncConfig is used to create the policies.
 The SyncConfig is configured to ignore namespaces having the label `espejo.syn.tools/no-network-policies` (the value does not matter).
