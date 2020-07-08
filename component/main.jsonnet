@@ -56,7 +56,9 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
 local pruneConfig = espejo.syncConfig('networkpolicies-prune-ignored') {
   spec: {
     namespaceSelector: {
-      matchNames: params.ignoredNamespaces,
+      labelSelector: {
+        'espejo.syn.tools/purge-network-policies': 'true',
+      },
     },
     deleteItems: [
       {
@@ -75,6 +77,7 @@ local labelPatches = std.flattenArrays([
     metadata: {
       labels: {
         'espejo.syn.tools/no-network-policies': 'true',
+        'espejo.syn.tools/purge-network-policies': 'true',
       },
     },
   })
