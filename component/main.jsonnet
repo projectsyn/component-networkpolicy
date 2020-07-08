@@ -59,7 +59,9 @@ local purgeConfig = espejo.syncConfig('networkpolicies-purge-defaults') {
   spec: {
     namespaceSelector: {
       labelSelector: {
-        [labelPurgeDefaults]: 'true',
+        matchLabels: {
+          [labelPurgeDefaults]: 'true',
+        },
       },
     },
     deleteItems: [{
