@@ -7,9 +7,6 @@ local inv = kap.inventory();
 local params = inv.parameters.networkpolicy;
 local allowLabels = params.allowNamespaceLabels;
 
-local labelNoDefaults = 'network-policies.syn.tools/no-defaults';
-local labelPurgeDefaults = 'network-policies.syn.tools/purge-defaults';
-
 local allowOthers = kube.NetworkPolicy('allow-from-other-namespaces') {
   spec+: {
     ingress+: [{
@@ -44,7 +41,7 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
       labelSelector: {
         matchExpressions: [
           {
-            key: labelNoDefaults,
+            key: params.labels.noDefaults,
             operator: 'DoesNotExist',
           },
         ],
@@ -60,7 +57,7 @@ local purgeConfig = espejo.syncConfig('networkpolicies-purge-defaults') {
     namespaceSelector: {
       labelSelector: {
         matchLabels: {
-          [labelPurgeDefaults]: 'true',
+          [params.labels.purgeDefaults]: 'true',
         },
       },
     },
@@ -76,8 +73,8 @@ local labelPatches = std.flattenArrays([
   resourcelocker.Patch(kube.Namespace(ns), {
     metadata: {
       labels: {
-        [labelNoDefaults]: 'true',
-        [labelPurgeDefaults]: 'true',
+        [params.labels.noDefaults]: 'true',
+        [params.labels.purgeDefaults]: 'true',
       },
     },
   })
