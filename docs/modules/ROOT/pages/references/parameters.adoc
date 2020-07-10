@@ -2,6 +2,20 @@
 
 The parent key for all of the following parameters is `networkpolicy`.
 
+== `labels`
+
+[horizontal]
+type:: dictionary
+default::
++
+[source,yaml]
+----
+noDefaults: network-policies.syn.tools/no-defaults
+purgeDefaults: network-policies.syn.tools/purge-defaults
+----
+
+Name of the labels to be used in other components.
+
 == `allowNamespaceLabels`
 
 [horizontal]
