@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Application of default NetworkPolicies ([#1])
 - Expose labels as parameters ([#2])
 
+### Changed
+
+- Disable Kapitan plugin ([#3])
+
 [Unreleased]: https://github.com/projectsyn/component-networkpolicy/compare/dba1d0f...HEAD
 [#1]: https://github.com/projectsyn/component-networkpolicy/pull/1
 [#2]: https://github.com/projectsyn/component-networkpolicy/pull/2
+[#3]: https://github.com/projectsyn/component-networkpolicy/pull/3
