@@ -7,7 +7,26 @@ local inv = kap.inventory();
 local params = inv.parameters.networkpolicy;
 local allowLabels = params.allowNamespaceLabels;
 
+local commonAnnotations = {
+  'syn.tools/source': 'https://github.com/projectsyn/component-networkpolicy.git',
+};
+
+local commonItemLabels = {
+  'app.kubernetes.io/managed-by': 'espejo',
+  'app.kubernetes.io/part-of': 'syn',
+  'app.kubernetes.io/component': 'networkpolicy',
+};
+
+local commonSyncLabels = {
+  'app.kubernetes.io/part-of': 'syn',
+  'app.kubernetes.io/component': 'networkpolicy',
+};
+
 local allowOthers = kube.NetworkPolicy('allow-from-other-namespaces') {
+  metadata+: {
+    annotations+: commonAnnotations,
+    labels+: commonItemLabels,
+  },
   spec+: {
     ingress+: [{
       from: [
@@ -26,6 +45,10 @@ local allowOthers = kube.NetworkPolicy('allow-from-other-namespaces') {
 };
 
 local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
+  metadata+: {
+    annotations+: commonAnnotations,
+    labels+: commonItemLabels,
+  },
   spec+: {
     ingress: [{
       from: [{
@@ -36,6 +59,10 @@ local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
 };
 
 local syncConfig = espejo.syncConfig('networkpolicies-default') {
+  metadata+: {
+    annotations+: commonAnnotations,
+    labels+: commonSyncLabels,
+  },
   spec: {
     namespaceSelector: {
       labelSelector: {
@@ -53,6 +80,10 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
 };
 
 local purgeConfig = espejo.syncConfig('networkpolicies-purge-defaults') {
+  metadata+: {
+    annotations+: commonAnnotations,
+    labels+: commonSyncLabels,
+  },
   spec: {
     namespaceSelector: {
       labelSelector: {
