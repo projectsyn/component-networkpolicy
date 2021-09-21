@@ -4,6 +4,18 @@ parameters:
       - type: https
         source: https://raw.githubusercontent.com/projectsyn/component-espejo/v1.0.1/lib/espejo.libsonnet
         output_path: vendor/lib/espejo.libsonnet
+      - type: https
+        source: https://raw.githubusercontent.com/projectsyn/component-resource-locker/v2.0.0/lib/resource-locker.libjsonnet
+        output_path: vendor/lib/resource-locker.libjsonnet
 
   espejo:
     namespace: espejo
+
+  resource_locker:
+    namespace: resource-locker
+
+  networkpolicy:
+    ignoredNamespaces:
+      - test
+    allowNamespaceLabels:
+      - test.example.net/test-group: main
