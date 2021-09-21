@@ -1,7 +1,6 @@
 local espejo = import 'lib/espejo.libsonnet';
 local kap = import 'lib/kapitan.libjsonnet';
 local kube = import 'lib/kube.libjsonnet';
-local resourcelocker = import 'lib/resource-locker.libjsonnet';
 local inv = kap.inventory();
 
 local params = inv.parameters.networkpolicy;
@@ -65,6 +64,7 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
   },
   spec: {
     namespaceSelector: {
+      ignoreNames: params.ignoredNamespaces,
       labelSelector: {
         matchExpressions: [
           {
@@ -79,7 +79,7 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
   },
 };
 
-local purgeConfig = espejo.syncConfig('networkpolicies-purge-defaults') {
+local purgeConfigLabel = espejo.syncConfig('networkpolicies-purge-defaults-by-label') {
   metadata+: {
     annotations+: commonAnnotations,
     labels+: commonSyncLabels,
@@ -100,21 +100,24 @@ local purgeConfig = espejo.syncConfig('networkpolicies-purge-defaults') {
   },
 };
 
-local labelPatches = std.flattenArrays([
-  resourcelocker.Patch(kube.Namespace(ns), {
-    metadata: {
-      labels: {
-        [params.labels.noDefaults]: 'true',
-        [params.labels.purgeDefaults]: 'true',
-      },
+local purgeConfigIgnoredNamespaces = espejo.syncConfig('networkpolicies-purge-defaults-ignored-namespaces') {
+  metadata+: {
+    annotations+: commonAnnotations,
+    labels+: commonSyncLabels,
+  },
+  spec: {
+    namespaceSelector: {
+      matchNames: params.ignoredNamespaces,
     },
-  })
-  for ns in params.ignoredNamespaces
-]);
-
+    deleteItems: [ {
+      apiVersion: policy.apiVersion,
+      kind: policy.kind,
+      name: policy.metadata.name,
+    } for policy in syncConfig.spec.syncItems ],
+  },
+};
 
 {
-  [if std.length(labelPatches) > 0 then '00_label_patches']: labelPatches,
-  [if std.length(params.ignoredNamespaces) > 0 then '05_purge_defaults']: purgeConfig,
+  '05_purge_defaults': [ purgeConfigIgnoredNamespaces, purgeConfigLabel ],
   '10_default_networkpolicies': syncConfig,
 }
