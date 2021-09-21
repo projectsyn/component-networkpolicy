@@ -79,45 +79,34 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
   },
 };
 
-local purgeConfigLabel = espejo.syncConfig('networkpolicies-purge-defaults-by-label') {
+local purgeConfig(name, namespaceSelector) = espejo.syncConfig(name) {
   metadata+: {
     annotations+: commonAnnotations,
     labels+: commonSyncLabels,
   },
   spec: {
-    namespaceSelector: {
+    namespaceSelector: namespaceSelector,
+    deleteItems: [ {
+      apiVersion: policy.apiVersion,
+      kind: policy.kind,
+      name: policy.metadata.name,
+    } for policy in syncConfig.spec.syncItems ],
+  },
+};
+
+
+{
+  '05_purge_defaults': [
+    purgeConfig('networkpolicies-purge-defaults-ignored-namespaces', {
+      matchNames: params.ignoredNamespaces,
+    }),
+    purgeConfig('networkpolicies-purge-defaults-by-label', {
       labelSelector: {
         matchLabels: {
           [params.labels.purgeDefaults]: 'true',
         },
       },
-    },
-    deleteItems: [ {
-      apiVersion: policy.apiVersion,
-      kind: policy.kind,
-      name: policy.metadata.name,
-    } for policy in syncConfig.spec.syncItems ],
-  },
-};
-
-local purgeConfigIgnoredNamespaces = espejo.syncConfig('networkpolicies-purge-defaults-ignored-namespaces') {
-  metadata+: {
-    annotations+: commonAnnotations,
-    labels+: commonSyncLabels,
-  },
-  spec: {
-    namespaceSelector: {
-      matchNames: params.ignoredNamespaces,
-    },
-    deleteItems: [ {
-      apiVersion: policy.apiVersion,
-      kind: policy.kind,
-      name: policy.metadata.name,
-    } for policy in syncConfig.spec.syncItems ],
-  },
-};
-
-{
-  '05_purge_defaults': [ purgeConfigIgnoredNamespaces, purgeConfigLabel ],
+    }),
+  ],
   '10_default_networkpolicies': syncConfig,
 }
