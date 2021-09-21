@@ -28,7 +28,7 @@ local allowOthers = kube.NetworkPolicy('allow-from-other-namespaces') {
     labels+: commonItemLabels,
   },
   spec+: {
-    ingress+: [{
+    ingress+: [ {
       from: [
         {
           namespaceSelector: {
@@ -40,7 +40,7 @@ local allowOthers = kube.NetworkPolicy('allow-from-other-namespaces') {
         }
         for labels in allowLabels
       ],
-    }],
+    } ],
   },
 };
 
@@ -50,11 +50,11 @@ local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
     labels+: commonItemLabels,
   },
   spec+: {
-    ingress: [{
-      from: [{
+    ingress: [ {
+      from: [ {
         podSelector: {},
-      }],
-    }],
+      } ],
+    } ],
   },
 };
 
@@ -74,8 +74,8 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
         ],
       },
     },
-    syncItems: [allowSameNamespace] +
-               if std.length(allowLabels) > 0 then [allowOthers] else [],
+    syncItems: [ allowSameNamespace ] +
+               if std.length(allowLabels) > 0 then [ allowOthers ] else [],
   },
 };
 
@@ -92,11 +92,11 @@ local purgeConfig = espejo.syncConfig('networkpolicies-purge-defaults') {
         },
       },
     },
-    deleteItems: [{
+    deleteItems: [ {
       apiVersion: policy.apiVersion,
       kind: policy.kind,
       name: policy.metadata.name,
-    } for policy in syncConfig.spec.syncItems],
+    } for policy in syncConfig.spec.syncItems ],
   },
 };
 
