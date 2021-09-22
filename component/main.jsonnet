@@ -1,7 +1,6 @@
 local espejo = import 'lib/espejo.libsonnet';
 local kap = import 'lib/kapitan.libjsonnet';
 local kube = import 'lib/kube.libjsonnet';
-local resourcelocker = import 'lib/resource-locker.libjsonnet';
 local inv = kap.inventory();
 
 local params = inv.parameters.networkpolicy;
@@ -65,6 +64,7 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
   },
   spec: {
     namespaceSelector: {
+      ignoreNames: params.ignoredNamespaces,
       labelSelector: {
         matchExpressions: [
           {
@@ -79,19 +79,13 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
   },
 };
 
-local purgeConfig = espejo.syncConfig('networkpolicies-purge-defaults') {
+local purgeConfig(name, namespaceSelector) = espejo.syncConfig(name) {
   metadata+: {
     annotations+: commonAnnotations,
     labels+: commonSyncLabels,
   },
   spec: {
-    namespaceSelector: {
-      labelSelector: {
-        matchLabels: {
-          [params.labels.purgeDefaults]: 'true',
-        },
-      },
-    },
+    namespaceSelector: namespaceSelector,
     deleteItems: [ {
       apiVersion: policy.apiVersion,
       kind: policy.kind,
@@ -100,21 +94,19 @@ local purgeConfig = espejo.syncConfig('networkpolicies-purge-defaults') {
   },
 };
 
-local labelPatches = std.flattenArrays([
-  resourcelocker.Patch(kube.Namespace(ns), {
-    metadata: {
-      labels: {
-        [params.labels.noDefaults]: 'true',
-        [params.labels.purgeDefaults]: 'true',
-      },
-    },
-  })
-  for ns in params.ignoredNamespaces
-]);
-
 
 {
-  [if std.length(labelPatches) > 0 then '00_label_patches']: labelPatches,
-  [if std.length(params.ignoredNamespaces) > 0 then '05_purge_defaults']: purgeConfig,
+  '05_purge_defaults': [
+    purgeConfig('networkpolicies-purge-defaults-ignored-namespaces', {
+      matchNames: params.ignoredNamespaces,
+    }),
+    purgeConfig('networkpolicies-purge-defaults-by-label', {
+      labelSelector: {
+        matchLabels: {
+          [params.labels.purgeDefaults]: 'true',
+        },
+      },
+    }),
+  ],
   '10_default_networkpolicies': syncConfig,
 }

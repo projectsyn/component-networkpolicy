@@ -12,6 +12,8 @@ metadata:
   namespace: espejo
 spec:
   namespaceSelector:
+    ignoreNames:
+      - my-ignored-namespace
     labelSelector:
       matchExpressions:
         - key: network-policies.syn.tools/no-defaults

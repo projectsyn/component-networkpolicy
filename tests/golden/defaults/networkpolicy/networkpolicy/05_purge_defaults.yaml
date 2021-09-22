@@ -7,8 +7,32 @@ metadata:
   labels:
     app.kubernetes.io/component: networkpolicy
     app.kubernetes.io/part-of: syn
-    name: networkpolicies-purge-defaults
-  name: networkpolicies-purge-defaults
+    name: networkpolicies-purge-defaults-ignored-namespaces
+  name: networkpolicies-purge-defaults-ignored-namespaces
+  namespace: espejo
+spec:
+  deleteItems:
+    - apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      name: allow-from-same-namespace
+    - apiVersion: networking.k8s.io/v1
+      kind: NetworkPolicy
+      name: allow-from-other-namespaces
+  namespaceSelector:
+    matchNames:
+      - my-ignored-namespace
+---
+apiVersion: sync.appuio.ch/v1alpha1
+kind: SyncConfig
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+    syn.tools/source: https://github.com/projectsyn/component-networkpolicy.git
+  labels:
+    app.kubernetes.io/component: networkpolicy
+    app.kubernetes.io/part-of: syn
+    name: networkpolicies-purge-defaults-by-label
+  name: networkpolicies-purge-defaults-by-label
   namespace: espejo
 spec:
   deleteItems:
