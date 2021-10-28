@@ -47,6 +47,20 @@ default:: empty list
 A list of namespace names where no default NetworkPolicies will be created.
 Default NetworkPolicies will be purged for all namespaces in this list.
 
+== `networkPlugin`
+
+[horizontal]
+type:: string
+default:: `''`
+
+The network plugin installed on the cluster.
+
+[CAUTION]
+====
+This needs to be set when using the Cilium network plugin.
+Otherwise some policies might not be applied correctly.
+====
+
 == Example
 
 [source,yaml]

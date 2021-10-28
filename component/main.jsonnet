@@ -57,6 +57,27 @@ local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
   },
 };
 
+local ciliumNetworkPlugins = [
+  {
+    apiVersion: 'cilium.io/v2',
+    kind: 'CiliumNetworkPolicy',
+    metadata: {
+      name: 'allow-from-cluster-nodes',
+    },
+    spec: {
+      endpointSelector: {},
+      ingress: [
+        {
+          fromEntities: [
+            'host',
+            'remote-node',
+          ],
+        },
+      ],
+    },
+  },
+];
+
 local syncConfig = espejo.syncConfig('networkpolicies-default') {
   metadata+: {
     annotations+: commonAnnotations,
@@ -75,7 +96,8 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
       },
     },
     syncItems: [ allowSameNamespace ] +
-               if std.length(allowLabels) > 0 then [ allowOthers ] else [],
+               (if params.networkPlugin == 'cilium' || params.networkPlugin == 'Cilium' then ciliumNetworkPlugins else []) +
+               (if std.length(allowLabels) > 0 then [ allowOthers ] else []),
   },
 };
 
