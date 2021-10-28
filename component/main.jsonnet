@@ -96,7 +96,7 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
       },
     },
     syncItems: [ allowSameNamespace ] +
-               (if params.networkPlugin == 'cilium' || params.networkPlugin == 'Cilium' then ciliumNetworkPlugins else []) +
+               (if std.asciiLower(params.networkPlugin) == 'cilium' then ciliumNetworkPlugins else []) +
                (if std.length(allowLabels) > 0 then [ allowOthers ] else []),
   },
 };
