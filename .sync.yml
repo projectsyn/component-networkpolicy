@@ -1,9 +1,5 @@
 :global:
-  componentName: networkpolicy
+  componentName: NetworkPolicy
   githubUrl: https://github.com/projectsyn/component-networkpolicy
   feature_goUnitTests: false
   feature_goldenTests: true
-
-docs/antora.yml:
-  name: networkpolicy
-  title: NetworkPolicy
