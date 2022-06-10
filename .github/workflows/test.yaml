@@ -5,7 +5,7 @@ on:
       - master
 
 env:
-  COMPONENT_NAME: networkpolicy
+  COMPONENT_NAME: NetworkPolicy
 
 jobs:
   linting:
