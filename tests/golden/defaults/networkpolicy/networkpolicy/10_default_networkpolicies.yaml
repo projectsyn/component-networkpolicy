@@ -31,7 +31,6 @@ spec:
           name: allow-from-same-namespace
         name: allow-from-same-namespace
       spec:
-        egress: []
         ingress:
           - from:
               - podSelector: {}
@@ -50,7 +49,6 @@ spec:
           name: allow-from-other-namespaces
         name: allow-from-other-namespaces
       spec:
-        egress: []
         ingress:
           - from:
               - namespaceSelector:
