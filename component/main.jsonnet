@@ -40,6 +40,8 @@ local allowOthers = kube.NetworkPolicy('allow-from-other-namespaces') {
         for labels in allowLabels
       ],
     } ],
+    // Hide unused optional egress field
+    egress:: [],
   },
 };
 
@@ -54,6 +56,8 @@ local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
         podSelector: {},
       } ],
     } ],
+    // Hide unused optional egress field
+    egress:: [],
   },
 };
 
