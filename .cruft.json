@@ -1,0 +1,21 @@
+{
+  "template": "https://github.com/projectsyn/commodore-component-template.git",
+  "commit": "e6c4fd69190db1ad12e941d578b9423d0e2f993c",
+  "checkout": "main",
+  "context": {
+    "cookiecutter": {
+      "name": "NetworkPolicy",
+      "slug": "networkpolicy",
+      "parameter_key": "networkpolicy",
+      "test_cases": "defaults",
+      "add_golden": "y",
+      "add_matrix": "n",
+      "add_go_unit": "n",
+      "github_owner": "projectsyn",
+      "github_name": "component-networkpolicy",
+      "github_url": "https://github.com/projectsyn/component-networkpolicy",
+      "_template": "https://github.com/projectsyn/commodore-component-template.git"
+    }
+  },
+  "directory": null
+}
