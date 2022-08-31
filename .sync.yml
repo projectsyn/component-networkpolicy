@@ -1,5 +1,0 @@
-:global:
-  componentName: NetworkPolicy
-  githubUrl: https://github.com/projectsyn/component-networkpolicy
-  feature_goUnitTests: false
-  feature_goldenTests: true
