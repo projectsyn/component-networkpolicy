@@ -16,6 +16,26 @@ purgeDefaults: network-policies.syn.tools/purge-defaults
 
 Name of the labels to be used in other components.
 
+== `allowFromSameNamespace.podSelector`
+
+[horizontal]
+type:: dictionary
+default:: {}
+
+A comprehensive list of values that the podSelector object supports.
+For more information on the podSelector object, refer to the kubectl explain networkpolicy.spec.podSelector command.
+
+[source,yaml]
+----
+allowFromSameNamespace:
+  podSelector:
+    matchLabels:
+      io.cilium.k8s.policy.cluster: cluster1
+----
+
+In the given example, traffic will be permitted on a Cilium Cluster Mesh-enabled cluster only within the same local cluster network.
+By default, the {} selector allows traffic between pods of all Cilium Cluster Mesh-enabled clusters that share the same namespace name.
+
 == `allowNamespaceLabels`
 
 [horizontal]

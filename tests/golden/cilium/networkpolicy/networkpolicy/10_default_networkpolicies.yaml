@@ -33,7 +33,9 @@ spec:
       spec:
         ingress:
           - from:
-              - podSelector: {}
+              - podSelector:
+                  matchLabels:
+                    io.cilium.k8s.policy.cluster: cluster1
         podSelector: {}
         policyTypes:
           - Ingress

@@ -53,7 +53,7 @@ local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
   spec+: {
     ingress: [ {
       from: [ {
-        podSelector: {},
+        podSelector: params.allowFromSameNamespace.podSelector,
       } ],
     } ],
     // Hide unused optional egress field

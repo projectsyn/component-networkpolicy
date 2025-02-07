@@ -14,3 +14,8 @@ parameters:
     allowNamespaceLabels:
       - test.example.net/test-group: main
     networkPlugin: Cilium
+
+    allowFromSameNamespace:
+      podSelector:
+        matchLabels:
+          io.cilium.k8s.policy.cluster: cluster1
