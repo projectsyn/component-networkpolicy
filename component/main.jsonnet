@@ -6,6 +6,8 @@ local inv = kap.inventory();
 local params = inv.parameters.networkpolicy;
 local allowLabels = params.allowNamespaceLabels;
 
+local plugin = std.asciiLower(params.networkPlugin);
+
 local commonAnnotations = {
   'syn.tools/source': 'https://github.com/projectsyn/component-networkpolicy.git',
 };
@@ -45,6 +47,18 @@ local allowOthers = kube.NetworkPolicy('allow-from-other-namespaces') {
   },
 };
 
+local podSelector =
+  if
+    plugin == 'cilium' && params.ciliumClusterID != ''
+  then
+    {
+      matchLabels: {
+        'io.cilium.k8s.policy.cluster': params.ciliumClusterID,
+      },
+    }
+  else
+    {};
+
 local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
   metadata+: {
     annotations+: commonAnnotations,
@@ -53,7 +67,7 @@ local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
   spec+: {
     ingress: [ {
       from: [ {
-        podSelector: {},
+        podSelector: podSelector,
       } ],
     } ],
     // Hide unused optional egress field
@@ -100,7 +114,7 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
       },
     },
     syncItems: [ allowSameNamespace ] +
-               (if std.asciiLower(params.networkPlugin) == 'cilium' then ciliumNetworkPlugins else []) +
+               (if plugin == 'cilium' then ciliumNetworkPlugins else []) +
                (if std.length(allowLabels) > 0 then [ allowOthers ] else []),
   },
 };
