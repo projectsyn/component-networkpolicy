@@ -7,11 +7,11 @@
       "name": "NetworkPolicy",
       "slug": "networkpolicy",
       "parameter_key": "networkpolicy",
-      "test_cases": "defaults",
+      "test_cases": "defaults cilium cilium-isolation",
       "add_lib": "n",
       "add_pp": "n",
       "add_golden": "y",
-      "add_matrix": "n",
+      "add_matrix": "y",
       "add_go_unit": "n",
       "automerge_patch": "y",
       "automerge_patch_v0": "n",
@@ -24,7 +24,8 @@
       "github_owner": "projectsyn",
       "github_name": "component-networkpolicy",
       "github_url": "https://github.com/projectsyn/component-networkpolicy",
-      "_template": "https://github.com/projectsyn/commodore-component-template.git"
+      "_template": "https://github.com/projectsyn/commodore-component-template.git",
+      "_commit": "98d16f99766e6c6d97322dbe42e058f0e2bf73d0"
     }
   },
   "directory": null

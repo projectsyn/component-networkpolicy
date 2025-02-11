@@ -61,6 +61,29 @@ This needs to be set when using the Cilium network plugin.
 Otherwise some policies might not be applied correctly.
 ====
 
+== `ciliumClusterID`
+
+[horizontal]
+type:: string
+default:: `''`
+
+This parameter controls whether the component isolates namespaces with the same name from each other in a Cilium cluster mesh.
+The default behavior if the parameter is empty is to allow connectivity between namespaces with the same name across clusters.
+
+If this behavior isn't desired, this parameter can be set to the cluster's Cilium cluster ID (which is configured in parameter `cilium.cilium_helm_values.cluster.name` when using cluster mesh).
+When the parameter isn't empty, the component will adjust the `allow-from-same-namespace` policy with the following snippet:
+
+[source,yaml]
+----
+spec:
+ ingress:
+ - from:
+   - podSelector:
+       matchLabels:
+         io.cilium.k8s.policy.cluster: <ciliumClusterID> <1>
+----
+<1> `<ciliumClusterID>` is replaced with the string provided in this parameter
+
 == Example
 
 [source,yaml]
