@@ -7,7 +7,7 @@
       "name": "NetworkPolicy",
       "slug": "networkpolicy",
       "parameter_key": "networkpolicy",
-      "test_cases": "defaults cilium",
+      "test_cases": "defaults cilium cilium-isolation",
       "add_lib": "n",
       "add_pp": "n",
       "add_golden": "y",
