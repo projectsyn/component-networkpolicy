@@ -9,3 +9,4 @@ parameters:
     ignoredNamespaces: []
     networkPlugin: ''
     ciliumClusterID: ''
+    allowFromNodeLabels: {}

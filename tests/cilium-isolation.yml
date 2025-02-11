@@ -15,3 +15,5 @@ parameters:
       - test.example.net/test-group: main
     networkPlugin: Cilium
     ciliumClusterID: ${cluster:name}
+    allowFromNodeLabels:
+      syn.tools/cluster-id: ${cluster:name}

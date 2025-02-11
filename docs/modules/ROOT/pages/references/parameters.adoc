@@ -84,6 +84,42 @@ spec:
 ----
 <1> `<ciliumClusterID>` is replaced with the string provided in this parameter
 
+== `allowFromNodeLabels`
+
+[horizontal]
+type:: dict
+default:: `{}`
+
+This parameter allows users to customize the `allow-from-cluster-nodes` `CiliumNetworkPolicy`.
+
+When this parameter is empty, this policy allow access from workloads running on all cluster nodes (including nodes of other clusters in the same cluster mesh) to workloads.
+This ensures that -- for example -- an ingress controller which is running in host-network mode can access workloads that are exposed through an `Ingress`.
+
+When the parameter isn't empty, the component uses the contents as the value for `matchLabels` in a `fromNodes` entry in the `CiliumNetworkPolicy`.
+This restricts access to workloads to the host network on nodes matching the provided label selector(s).
+See the https://docs.cilium.io/en/latest/security/policy/language/#node-based[Cilium documentation] for details on the `fromNodes` policy mechanism.
+
+IMPORTANT: When setting a value for this parameter, you must ensure that you're using Cilium 1.16 or newer and that the Helm value `nodeSelectorLabels=true` is set for your Cilium installation.
+
+[NOTE]
+====
+The `allow-from-cluster-nodes` policy always allows access to workloads in the namespace from the host on which they're running.
+This ensures that the Kubernetes health checks work as expected regardless of the provided label selector.
+====
+
+[TIP]
+====
+For isolating access to workloads between clusters in a Cilium cluster mesh, you can label all nodes of each cluster with the cluster's Project Syn ID, for example with `kubectl label nodes --all syn.tools/cluster-id=c-the-cluster-1234`.
+
+Then you can set this parameter as
+
+[source,yaml]
+----
+allowFromNodeLabels:
+  syn.tools/cluster-id: ${cluster:name}
+----
+====
+
 == Example
 
 [source,yaml]
