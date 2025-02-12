@@ -75,26 +75,40 @@ local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
   },
 };
 
-local ciliumNetworkPlugins = [
-  {
-    apiVersion: 'cilium.io/v2',
-    kind: 'CiliumNetworkPolicy',
-    metadata: {
-      name: 'allow-from-cluster-nodes',
+local ciliumNetworkPlugins =
+  local ingressPolicies = if std.length(params.allowFromNodeLabels) > 0 then [
+    {
+      // always allow access from local node's host network, e.g. health checks.
+      fromEntities: [ 'host' ],
     },
-    spec: {
-      endpointSelector: {},
-      ingress: [
+    {
+      fromNodes: [
         {
-          fromEntities: [
-            'host',
-            'remote-node',
-          ],
+          matchLabels: params.allowFromNodeLabels,
         },
       ],
     },
-  },
-];
+  ] else [
+    {
+      fromEntities: [
+        'host',
+        'remote-node',
+      ],
+    },
+  ];
+  [
+    {
+      apiVersion: 'cilium.io/v2',
+      kind: 'CiliumNetworkPolicy',
+      metadata: {
+        name: 'allow-from-cluster-nodes',
+      },
+      spec: {
+        endpointSelector: {},
+        ingress: ingressPolicies,
+      },
+    },
+  ];
 
 local syncConfig = espejo.syncConfig('networkpolicies-default') {
   metadata+: {
