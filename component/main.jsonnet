@@ -1,3 +1,4 @@
+local com = import 'lib/commodore.libjsonnet';
 local espejo = import 'lib/espejo.libsonnet';
 local kap = import 'lib/kapitan.libjsonnet';
 local kube = import 'lib/kube.libjsonnet';
@@ -5,6 +6,7 @@ local inv = kap.inventory();
 
 local params = inv.parameters.networkpolicy;
 local allowLabels = params.allowNamespaceLabels;
+local ignoredNamespaces = com.renderArray(params.ignoredNamespaces);
 
 local plugin = std.asciiLower(params.networkPlugin);
 
@@ -117,7 +119,7 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
   },
   spec: {
     namespaceSelector: {
-      ignoreNames: params.ignoredNamespaces,
+      ignoreNames: ignoredNamespaces,
       labelSelector: {
         matchExpressions: [
           {
@@ -152,7 +154,7 @@ local purgeConfig(name, namespaceSelector) = espejo.syncConfig(name) {
 {
   '05_purge_defaults': [
     purgeConfig('networkpolicies-purge-defaults-ignored-namespaces', {
-      matchNames: params.ignoredNamespaces,
+      matchNames: ignoredNamespaces,
     }),
     purgeConfig('networkpolicies-purge-defaults-by-label', {
       labelSelector: {
