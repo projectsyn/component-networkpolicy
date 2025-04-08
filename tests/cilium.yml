@@ -11,6 +11,8 @@ parameters:
   networkpolicy:
     ignoredNamespaces:
       - my-ignored-namespace
+      - my-other-ignored
+      - ~my-other-ignored
     allowNamespaceLabels:
       - test.example.net/test-group: main
     networkPlugin: Cilium
