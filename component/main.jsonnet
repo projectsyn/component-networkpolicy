@@ -112,7 +112,12 @@ local ciliumNetworkPlugins =
     },
   ];
 
-local syncConfig = espejo.syncConfig('networkpolicies-default') {
+local baseSyncItems = (if plugin == 'cilium' then ciliumNetworkPlugins else []) +
+                      (if std.length(allowLabels) > 0 then [ allowOthers ] else []);
+
+local defaultSyncItems = [ allowSameNamespace ];
+
+local defaultSyncConfig = espejo.syncConfig('networkpolicies-default') {
   metadata+: {
     annotations+: commonAnnotations,
     labels+: commonSyncLabels,
@@ -126,16 +131,39 @@ local syncConfig = espejo.syncConfig('networkpolicies-default') {
             key: params.labels.noDefaults,
             operator: 'DoesNotExist',
           },
+          {
+            key: params.labels.baseDefaults,
+            operator: 'DoesNotExist',
+          },
         ],
       },
     },
-    syncItems: [ allowSameNamespace ] +
-               (if plugin == 'cilium' then ciliumNetworkPlugins else []) +
-               (if std.length(allowLabels) > 0 then [ allowOthers ] else []),
+    syncItems: defaultSyncItems + baseSyncItems,
   },
 };
 
-local purgeConfig(name, namespaceSelector) = espejo.syncConfig(name) {
+local baseSyncConfig = espejo.syncConfig('networkpolicies-base') {
+  metadata+: {
+    annotations+: commonAnnotations,
+    labels+: commonSyncLabels,
+  },
+  spec: {
+    namespaceSelector: {
+      ignoreNames: ignoredNamespaces,
+      labelSelector: {
+        matchExpressions: [
+          {
+            key: params.labels.baseDefaults,
+            operator: 'Exists',
+          },
+        ],
+      },
+    },
+    syncItems: baseSyncItems,
+  },
+};
+
+local purgeConfig(name, namespaceSelector, items) = espejo.syncConfig(name) {
   metadata+: {
     annotations+: commonAnnotations,
     labels+: commonSyncLabels,
@@ -146,23 +174,30 @@ local purgeConfig(name, namespaceSelector) = espejo.syncConfig(name) {
       apiVersion: policy.apiVersion,
       kind: policy.kind,
       name: policy.metadata.name,
-    } for policy in syncConfig.spec.syncItems ],
+    } for policy in items ],
   },
 };
-
 
 {
   '05_purge_defaults': [
     purgeConfig('networkpolicies-purge-defaults-ignored-namespaces', {
       matchNames: ignoredNamespaces,
-    }),
+    }, defaultSyncItems + baseSyncItems),
     purgeConfig('networkpolicies-purge-defaults-by-label', {
       labelSelector: {
         matchLabels: {
           [params.labels.purgeDefaults]: 'true',
         },
       },
-    }),
+    }, defaultSyncItems + baseSyncItems),
+    purgeConfig('networkpolicies-purge-non-base-by-label', {
+      labelSelector: {
+        matchLabels: {
+          [params.labels.purgeNonBase]: 'true',
+        },
+      },
+    }, defaultSyncItems),
   ],
-  '10_default_networkpolicies': syncConfig,
+  '10_base_networkpolicies': baseSyncConfig,
+  '10_default_networkpolicies': defaultSyncConfig,
 }

@@ -7,8 +7,8 @@ metadata:
   labels:
     app.kubernetes.io/component: networkpolicy
     app.kubernetes.io/part-of: syn
-    name: networkpolicies-default
-  name: networkpolicies-default
+    name: networkpolicies-base
+  name: networkpolicies-base
   namespace: espejo
 spec:
   namespaceSelector:
@@ -16,29 +16,9 @@ spec:
       - my-ignored-namespace
     labelSelector:
       matchExpressions:
-        - key: network-policies.syn.tools/no-defaults
-          operator: DoesNotExist
         - key: network-policies.syn.tools/base-defaults
-          operator: DoesNotExist
+          operator: Exists
   syncItems:
-    - apiVersion: networking.k8s.io/v1
-      kind: NetworkPolicy
-      metadata:
-        annotations:
-          syn.tools/source: https://github.com/projectsyn/component-networkpolicy.git
-        labels:
-          app.kubernetes.io/component: networkpolicy
-          app.kubernetes.io/managed-by: espejo
-          app.kubernetes.io/part-of: syn
-          name: allow-from-same-namespace
-        name: allow-from-same-namespace
-      spec:
-        ingress:
-          - from:
-              - podSelector: {}
-        podSelector: {}
-        policyTypes:
-          - Ingress
     - apiVersion: cilium.io/v2
       kind: CiliumNetworkPolicy
       metadata:
@@ -48,7 +28,9 @@ spec:
         ingress:
           - fromEntities:
               - host
-              - remote-node
+          - fromNodes:
+              - matchLabels:
+                  syn.tools/cluster-id: c-green-test-1234
     - apiVersion: networking.k8s.io/v1
       kind: NetworkPolicy
       metadata:
