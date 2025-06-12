@@ -34,7 +34,7 @@ The already created policies will stay in place and can be modified by the user 
 Only policies required for the OpenShift platform will be created.
 The intra-namespace policy will no longer be managed by this component and can be modified by the user or other components.
 
-Pods will no longer be able to communicate with each other even if they are in the same namespace.
+There's no guarantee that pods will be able to communicate with each other even if they are in the same namespace once the intra-namespace policies is modified or removed by the user.
 
 === `purgeDefaults` label
 
