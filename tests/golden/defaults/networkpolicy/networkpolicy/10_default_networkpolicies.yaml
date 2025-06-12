@@ -18,6 +18,8 @@ spec:
       matchExpressions:
         - key: network-policies.syn.tools/no-defaults
           operator: DoesNotExist
+        - key: network-policies.syn.tools/base-defaults
+          operator: DoesNotExist
   syncItems:
     - apiVersion: networking.k8s.io/v1
       kind: NetworkPolicy
