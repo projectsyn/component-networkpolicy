@@ -9,8 +9,8 @@ The latter is needed for ingress and monitoring to work.
 
 This component assumes that a cluster was set up with a https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins[network plugin] that supports NetworkPolicies.
 
-An Espejo SyncConfig is used to create the policies.
-The SyncConfig is configured to ignore namespaces having the label `network-policies.syn.tools/no-defaults` (the value doesn't matter).
+An Espejote ManagedResource is used to create the policies.
+The ManagedResource is configured to ignore namespaces having the label `network-policies.syn.tools/no-defaults` (the value doesn't matter).
 
 [IMPORTANT]
 ====
