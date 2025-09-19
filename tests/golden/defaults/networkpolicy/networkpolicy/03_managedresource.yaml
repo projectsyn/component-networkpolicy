@@ -13,7 +13,7 @@ spec:
   applyOptions:
     force: true
   context:
-    - name: namespace
+    - name: namespaces
       resource:
         apiVersion: v1
         kind: Namespace
@@ -119,7 +119,7 @@ spec:
     ) else (
       // Reconcile all namespaces for jsonnetlibrary update or managedresource
       // reconcile.
-      local namespaces = esp.context().namespace;
+      local namespaces = esp.context().namespaces;
       std.flattenArrays([
         reconcileNamespace(ns)
         for ns in namespaces
@@ -135,7 +135,7 @@ spec:
         namespace: syn-espejote
     - name: namespace
       watchContextResource:
-        name: namespace
+        name: namespaces
     - name: netpol
       watchResource:
         apiVersion: networking.k8s.io/v1

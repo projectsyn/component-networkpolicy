@@ -97,7 +97,7 @@ if esp.triggerName() == 'namespace' then (
 ) else (
   // Reconcile all namespaces for jsonnetlibrary update or managedresource
   // reconcile.
-  local namespaces = esp.context().namespace;
+  local namespaces = esp.context().namespaces;
   std.flattenArrays([
     reconcileNamespace(ns)
     for ns in namespaces

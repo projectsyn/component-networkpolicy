@@ -114,7 +114,7 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
   spec: {
     context: [
       {
-        name: 'namespace',
+        name: 'namespaces',
         resource: {
           apiVersion: 'v1',
           kind: 'Namespace',
@@ -134,7 +134,7 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
       {
         name: 'namespace',
         watchContextResource: {
-          name: 'namespace',
+          name: 'namespaces',
         },
       },
       {
