@@ -1,203 +1,188 @@
 local com = import 'lib/commodore.libjsonnet';
-local espejo = import 'lib/espejo.libsonnet';
+local esp = import 'lib/espejote.libsonnet';
 local kap = import 'lib/kapitan.libjsonnet';
 local kube = import 'lib/kube.libjsonnet';
+
+local resources = import 'espejote-templates/netpol-resources.libsonnet';
+
 local inv = kap.inventory();
-
 local params = inv.parameters.networkpolicy;
-local allowLabels = params.allowNamespaceLabels;
-local ignoredNamespaces = com.renderArray(params.ignoredNamespaces);
 
-local plugin = std.asciiLower(params.networkPlugin);
+local espNamespace = inv.parameters.espejote.namespace;
+local mrName = 'espejote-networkpolicy-sync';
+local rbacName = 'espejote-managedresource-networkpolicy-sync';
 
-local commonAnnotations = {
-  'syn.tools/source': 'https://github.com/projectsyn/component-networkpolicy.git',
-};
-
-local commonItemLabels = {
-  'app.kubernetes.io/managed-by': 'espejo',
-  'app.kubernetes.io/part-of': 'syn',
-  'app.kubernetes.io/component': 'networkpolicy',
-};
-
-local commonSyncLabels = {
-  'app.kubernetes.io/part-of': 'syn',
-  'app.kubernetes.io/component': 'networkpolicy',
-};
-
-local allowOthers = kube.NetworkPolicy('allow-from-other-namespaces') {
-  metadata+: {
-    annotations+: commonAnnotations,
-    labels+: commonItemLabels,
-  },
-  spec+: {
-    ingress+: [ {
-      from: [
-        {
-          namespaceSelector: {
-            matchLabels: {
-              [key]: labels[key]
-              for key in std.objectFields(labels)
-            },
-          },
-        }
-        for labels in allowLabels
-      ],
-    } ],
-    // Hide unused optional egress field
-    egress:: [],
-  },
-};
-
-local podSelector =
-  if
-    plugin == 'cilium' && params.ciliumClusterID != ''
-  then
-    {
-      matchLabels: {
-        'io.cilium.k8s.policy.cluster': params.ciliumClusterID,
+// RBAC for Espejote
+local espejoteRBAC = [
+  {
+    apiVersion: 'v1',
+    kind: 'ServiceAccount',
+    metadata: {
+      labels: {
+        'app.kubernetes.io/component': 'networkpolicy',
+        'app.kubernetes.io/name': mrName,
       },
-    }
-  else
-    {};
-
-local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
-  metadata+: {
-    annotations+: commonAnnotations,
-    labels+: commonItemLabels,
+      name: mrName,
+      namespace: espNamespace,
+    },
   },
-  spec+: {
-    ingress: [ {
-      from: [ {
-        podSelector: podSelector,
-      } ],
-    } ],
-    // Hide unused optional egress field
-    egress:: [],
+  {
+    apiVersion: 'rbac.authorization.k8s.io/v1',
+    kind: 'ClusterRole',
+    metadata: {
+      labels: {
+        'app.kubernetes.io/component': 'networkpolicy',
+        'app.kubernetes.io/name': rbacName,
+      },
+      name: rbacName,
+    },
+    rules: [
+      {
+        apiGroups: [ '' ],
+        resources: [ 'namespaces' ],
+        verbs: [ 'get', 'list', 'watch' ],
+      },
+      {
+        apiGroups: [ 'espejote.io' ],
+        resources: [ 'jsonnetlibraries' ],
+        resourceNames: [ mrName ],
+        verbs: [ 'get', 'list', 'watch' ],
+      },
+      {
+        apiGroups: [ 'networking.k8s.io' ],
+        resources: [ 'networkpolicies' ],
+        verbs: [ 'get', 'list', 'watch', 'patch', 'create', 'delete' ],
+      },
+      {
+        apiGroups: [ 'cilium.io' ],
+        resources: [ 'ciliumnetworkpolicies' ],
+        verbs: [ 'get', 'list', 'watch', 'patch', 'create', 'delete' ],
+      },
+    ],
+  },
+  {
+    apiVersion: 'rbac.authorization.k8s.io/v1',
+    kind: 'ClusterRoleBinding',
+    metadata: {
+      labels: {
+        'app.kubernetes.io/component': 'networkpolicy',
+        'app.kubernetes.io/name': rbacName,
+      },
+      name: rbacName,
+    },
+    roleRef: {
+      apiGroup: 'rbac.authorization.k8s.io',
+      kind: 'ClusterRole',
+      name: rbacName,
+    },
+    subjects: [
+      {
+        kind: 'ServiceAccount',
+        name: mrName,
+        namespace: espNamespace,
+      },
+    ],
+  },
+];
+
+// Espejote resources
+local jsonnetLibrary = esp.jsonnetLibrary(mrName, espNamespace) {
+  spec: {
+    data: {
+      'config.json': std.manifestJson({
+        labels: params.labels,
+        allowNamespaceLabels: params.allowNamespaceLabels,
+        ignoredNamespaces: com.renderArray(params.ignoredNamespaces),
+        networkPlugin: std.asciiLower(params.networkPlugin),
+        ciliumClusterID: params.ciliumClusterID,
+        allowFromNodeLabels: params.allowFromNodeLabels,
+      }),
+      'resources.libsonnet': importstr 'espejote-templates/netpol-resources.libsonnet',
+    },
   },
 };
 
-local ciliumNetworkPlugins =
-  local ingressPolicies = if std.length(params.allowFromNodeLabels) > 0 then [
-    {
-      // always allow access from local node's host network, e.g. health checks.
-      fromEntities: [ 'host' ],
-    },
-    {
-      fromNodes: [
-        {
-          matchLabels: params.allowFromNodeLabels,
-        },
-      ],
-    },
-  ] else [
-    {
-      fromEntities: [
-        'host',
-        'remote-node',
-      ],
-    },
-  ];
-  [
-    {
-      apiVersion: 'cilium.io/v2',
-      kind: 'CiliumNetworkPolicy',
-      metadata: {
-        name: 'allow-from-cluster-nodes',
-      },
-      spec: {
-        endpointSelector: {},
-        ingress: ingressPolicies,
-      },
-    },
-  ];
-
-local baseSyncItems = (if plugin == 'cilium' then ciliumNetworkPlugins else []) +
-                      (if std.length(allowLabels) > 0 then [ allowOthers ] else []);
-
-local defaultSyncItems = [ allowSameNamespace ];
-
-local defaultSyncConfig = espejo.syncConfig('networkpolicies-default') {
+local managedResource = esp.managedResource(mrName, espNamespace) {
   metadata+: {
-    annotations+: commonAnnotations,
-    labels+: commonSyncLabels,
+    annotations: {
+      'syn.tools/description': |||
+        This managed resource purges existing network policies if they are
+        deployed in a namespace that is in the list of ignored namespaces.
+      |||,
+    },
   },
   spec: {
-    namespaceSelector: {
-      ignoreNames: ignoredNamespaces,
-      labelSelector: {
-        matchExpressions: [
-          {
-            key: params.labels.noDefaults,
-            operator: 'DoesNotExist',
-          },
-          {
-            key: params.labels.baseDefaults,
-            operator: 'DoesNotExist',
-          },
-        ],
-      },
-    },
-    syncItems: defaultSyncItems + baseSyncItems,
-  },
-};
-
-local baseSyncConfig = espejo.syncConfig('networkpolicies-base') {
-  metadata+: {
-    annotations+: commonAnnotations,
-    labels+: commonSyncLabels,
-  },
-  spec: {
-    namespaceSelector: {
-      ignoreNames: ignoredNamespaces,
-      labelSelector: {
-        matchExpressions: [
-          {
-            key: params.labels.baseDefaults,
-            operator: 'Exists',
-          },
-        ],
-      },
-    },
-    syncItems: baseSyncItems,
-  },
-};
-
-local purgeConfig(name, namespaceSelector, items) = espejo.syncConfig(name) {
-  metadata+: {
-    annotations+: commonAnnotations,
-    labels+: commonSyncLabels,
-  },
-  spec: {
-    namespaceSelector: namespaceSelector,
-    deleteItems: [ {
-      apiVersion: policy.apiVersion,
-      kind: policy.kind,
-      name: policy.metadata.name,
-    } for policy in items ],
-  },
-};
-
-{
-  '05_purge_defaults': [
-    purgeConfig('networkpolicies-purge-defaults-ignored-namespaces', {
-      matchNames: ignoredNamespaces,
-    }, defaultSyncItems + baseSyncItems),
-    purgeConfig('networkpolicies-purge-defaults-by-label', {
-      labelSelector: {
-        matchLabels: {
-          [params.labels.purgeDefaults]: 'true',
+    context: [
+      {
+        name: 'namespaces',
+        resource: {
+          apiVersion: 'v1',
+          kind: 'Namespace',
         },
       },
-    }, defaultSyncItems + baseSyncItems),
-    purgeConfig('networkpolicies-purge-non-base-by-label', {
-      labelSelector: {
-        matchLabels: {
-          [params.labels.purgeNonBase]: 'true',
+    ],
+    triggers: [
+      {
+        name: 'jslib',
+        watchResource: {
+          apiVersion: jsonnetLibrary.apiVersion,
+          kind: 'JsonnetLibrary',
+          name: jsonnetLibrary.metadata.name,
+          namespace: jsonnetLibrary.metadata.namespace,
         },
       },
-    }, defaultSyncItems),
-  ],
-  '10_base_networkpolicies': baseSyncConfig,
-  '10_default_networkpolicies': defaultSyncConfig,
-}
+      {
+        name: 'namespace',
+        watchContextResource: {
+          name: 'namespaces',
+        },
+      },
+      {
+        name: 'netpol',
+        watchResource: {
+          apiVersion: resources.allowFromOtherNamespaces.apiVersion,
+          kind: resources.allowFromOtherNamespaces.kind,
+          matchNames: [
+            resources.allowFromOtherNamespaces.metadata.name,
+            resources.allowFromSameNamespace.metadata.name,
+          ],
+          namespace: '',
+        },
+      },
+      {
+        name: 'ciliumpol',
+        watchResource: {
+          apiVersion: resources.allowFromClusterNodes.apiVersion,
+          kind: resources.allowFromClusterNodes.kind,
+          matchNames: [
+            resources.allowFromClusterNodes.metadata.name,
+          ],
+          namespace: '',
+        },
+      },
+    ],
+    serviceAccountRef: {
+      name: espejoteRBAC[0].metadata.name,
+    },
+    applyOptions: {
+      force: true,
+    },
+    template: importstr 'espejote-templates/netpol-sync.jsonnet',
+  },
+};
+
+// Check if espejote is installed
+local has_espejote = std.member(inv.applications, 'espejote');
+
+// Define outputs below
+if has_espejote then
+  {
+    '01_rbac': espejoteRBAC,
+    '02_library': jsonnetLibrary,
+    '03_managedresource': managedResource,
+  }
+else
+  std.trace(
+    'espejote must be installed',
+    {}
+  )
