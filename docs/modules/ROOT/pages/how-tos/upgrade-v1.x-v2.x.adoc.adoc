@@ -1,0 +1,7 @@
+= Upgrade from v1.x to v2.x
+
+The parameter `labels.purgeDefaults` is deprecated.
+The component is backwards compatible, but the label `purgeDefaults` has the same effect as `noDefaults`.
+
+The parameter `labels.purgeNonBase` is deprecated.
+The component is backwards compatible, but the label `purgeNonBase` has the same effect as `baseDefaults`.

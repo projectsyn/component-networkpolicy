@@ -81,20 +81,6 @@ A list of namespace names where no default NetworkPolicies will be created.
 Default NetworkPolicies will be purged for all namespaces in this list.
 Entries in the list can be removed by adding the entry prefixed with a `~`.
 
-== `networkPlugin`
-
-[horizontal]
-type:: string
-default:: `''`
-
-The network plugin installed on the cluster.
-
-[CAUTION]
-====
-This needs to be set when using the Cilium network plugin.
-Otherwise some policies might not be applied correctly.
-====
-
 == `ciliumClusterID`
 
 [horizontal]
@@ -153,6 +139,28 @@ allowFromNodeLabels:
   syn.tools/cluster-id: ${cluster:name}
 ----
 ====
+
+== `policies`
+
+[horizontal]
+type:: dict
+default:: `{}`
+
+Define additional NetworkPolicies or CiliumNetworkPolicies to be used by policy sets.
+
+[NOTE]
+====
+Make sure to use the suffix `cilium/` when defining CiliumNetworkPolicies.
+====
+
+== `policySets`
+
+[horizontal]
+type:: dict
+default:: `{}`
+
+Define policy sets that can be selected by the label `network-policies.syn.tools/policy-sets`.
+A policy set is an array of policy names defined in `policies`.
 
 == Example
 

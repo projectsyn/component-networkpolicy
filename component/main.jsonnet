@@ -3,10 +3,11 @@ local esp = import 'lib/espejote.libsonnet';
 local kap = import 'lib/kapitan.libjsonnet';
 local kube = import 'lib/kube.libjsonnet';
 
-local resources = import 'espejote-templates/netpol-resources.libsonnet';
-
 local inv = kap.inventory();
 local params = inv.parameters.networkpolicy;
+
+local hasEspejote = std.member(inv.applications, 'espejote');
+local hasCilium = std.member(inv.applications, 'cilium');
 
 local espNamespace = inv.parameters.espejote.namespace;
 local mrName = 'espejote-networkpolicy-sync';
@@ -40,7 +41,7 @@ local espejoteRBAC = [
       {
         apiGroups: [ '' ],
         resources: [ 'namespaces' ],
-        verbs: [ 'get', 'list', 'watch' ],
+        verbs: [ 'get', 'list', 'watch', 'patch' ],
       },
       {
         apiGroups: [ 'espejote.io' ],
@@ -86,18 +87,88 @@ local espejoteRBAC = [
 ];
 
 // Espejote resources
+local _nameNamespaceIsolationBasic = 'namespace-isolation-basic';
+local _nameNamespaceIsolationFull = 'namespace-isolation-full';
+local _nameAllowFromOtherNamespaces = 'allow-from-other-namespaces';
+local _nameAllowFromSameNamespace = 'allow-from-same-namespace';
+local _nameAllowFromClusterNodes = 'allow-from-cluster-nodes';
+
+local _netpolAllowFromOtherNamespaces = {
+  policyTypes: [ 'Ingress' ],
+  ingress: [ {
+    from: [
+      { namespaceSelector: { matchLabels: labels } }
+      for labels in params.allowNamespaceLabels
+    ],
+  } ],
+  podSelector: {},
+};
+local _netpolAllowFromSameNamespace = {
+  policyTypes: [ 'Ingress' ],
+  ingress: [ {
+    from: [
+      { podSelector: {} },
+    ],
+  } ],
+  podSelector: {},
+};
+local _netpolAllowFromClusterNodes = {
+  endpointSelector: {},
+  ingress: if std.length(params.allowFromNodeLabels) > 0 then [
+    {
+      // always allow access from local node's host network, e.g. health checks.
+      fromEntities: [ 'host' ],
+    },
+    {
+      fromNodes: [
+        {
+          matchLabels: params.allowFromNodeLabels,
+        },
+      ],
+    },
+  ] else [
+    {
+      fromEntities: [
+        'host',
+        'remote-node',
+      ],
+    },
+  ],
+};
+
 local jsonnetLibrary = esp.jsonnetLibrary(mrName, espNamespace) {
   spec: {
     data: {
       'config.json': std.manifestJson({
         labels: params.labels,
-        allowNamespaceLabels: params.allowNamespaceLabels,
+        annotations: params.annotations,
         ignoredNamespaces: com.renderArray(params.ignoredNamespaces),
-        networkPlugin: std.asciiLower(params.networkPlugin),
-        ciliumClusterID: params.ciliumClusterID,
-        allowFromNodeLabels: params.allowFromNodeLabels,
+        hasCilium: hasCilium,
+        policies: {
+                    // Create default policies.
+                    'allow-from-other-namespaces': _netpolAllowFromOtherNamespaces,
+                    'allow-from-same-namespace': _netpolAllowFromSameNamespace,
+                    'cilium/allow-from-cluster-nodes': _netpolAllowFromClusterNodes,
+                  }
+                  // Merge from params.policies.
+                  + com.makeMergeable(params.policies),
+        policySets: {
+                      // Create default policy sets.
+                      [_nameNamespaceIsolationBasic]: [
+                        'allow-from-other-namespaces',
+                        'allow-from-same-namespace',
+                        'cilium/allow-from-cluster-nodes',
+                      ],
+                      [_nameNamespaceIsolationFull]: [
+                        'allow-from-other-namespaces',
+                        'cilium/allow-from-cluster-nodes',
+                      ],
+                    }
+                    // Merge from params.policySets.
+                    + com.makeMergeable(params.policySets),
+        setNamespaceIsolationBasic: _nameNamespaceIsolationBasic,
+        setNamespaceIsolationFull: _nameNamespaceIsolationFull,
       }),
-      'resources.libsonnet': importstr 'espejote-templates/netpol-resources.libsonnet',
     },
   },
 };
@@ -140,11 +211,11 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
       {
         name: 'netpol',
         watchResource: {
-          apiVersion: resources.allowFromOtherNamespaces.apiVersion,
-          kind: resources.allowFromOtherNamespaces.kind,
+          apiVersion: 'networking.k8s.io/v1',
+          kind: 'NetworkPolicy',
           matchNames: [
-            resources.allowFromOtherNamespaces.metadata.name,
-            resources.allowFromSameNamespace.metadata.name,
+            _nameAllowFromOtherNamespaces,
+            _nameAllowFromSameNamespace,
           ],
           namespace: '',
         },
@@ -152,10 +223,10 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
       {
         name: 'ciliumpol',
         watchResource: {
-          apiVersion: resources.allowFromClusterNodes.apiVersion,
-          kind: resources.allowFromClusterNodes.kind,
+          apiVersion: 'cilium.io/v2',
+          kind: 'CiliumNetworkPolicy',
           matchNames: [
-            resources.allowFromClusterNodes.metadata.name,
+            _nameAllowFromClusterNodes,
           ],
           namespace: '',
         },
@@ -171,11 +242,8 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
   },
 };
 
-// Check if espejote is installed
-local has_espejote = std.member(inv.applications, 'espejote');
-
 // Define outputs below
-if has_espejote then
+if hasEspejote then
   {
     '01_rbac': espejoteRBAC,
     '02_library': jsonnetLibrary,

@@ -1,4 +1,5 @@
 applications:
+  - cilium
   - espejote
 
 parameters:
