@@ -46,6 +46,7 @@ spec:
 
     // Extract the desired policy sets from the given namespace object,
     // based on the labels and desired default behaviour (isolation by default).
+    // Returns an array of policy set names with one or more entries.
     local desiredPolicySets(namespace) =
       local ignoreNamespace =
         std.member(config.ignoredNamespaces, namespace.metadata.name);
@@ -70,24 +71,30 @@ spec:
       // Return empty array if the namespace is ignored.
       // TODO: we should probably prune the active policy sets in namespaces that are ignored...
       // Maybe even annotate ignored namespaces with 'none'.
-      if ignoreNamespace then [] else std.uniq(std.sort(std.prune(
-        // Add policy sets based on the label params.labels.policySets.
-        // Also filter out the default policy sets, as they should not be added by the policy sets label
-        // and non-existing policy sets.
-        std.filter(
-          filterPolicySets,
-          splitPolicySetsLabel
-        )
-        // Add default policy set 'namespace-isolation-full' if the namespace
-        // has the label params.labels.baseDefaults set.
-        + if isFullyIsolated then [ config.setNamespaceIsolationFull ]
-        // Add no default policy set if the namespace
-        // has the label params.labels.purgeDefaults or params.labels.noDefaults set.
-        else if isNotIsolated then []
-        // Add default policy set 'namespace-isolation' if the namespace
-        // does not have the label params.labels.purgeDefaults or params.labels.noDefaults set.
-        else [ config.setNamespaceIsolationBasic ]
-      )));
+      if ignoreNamespace then
+        []
+      else
+        std.set(std.filter(
+          function(set) set != null,
+          // Add policy sets based on the label params.labels.policySets.
+          // Also filter out the default policy sets, as they should not be added by the policy sets label
+          // and non-existing policy sets.
+          std.filter(
+            filterPolicySets,
+            splitPolicySetsLabel
+          ) + (
+            // Add default policy set 'namespace-isolation-full' if the namespace
+            // has the label params.labels.baseDefaults set.
+            if isFullyIsolated then [ config.setNamespaceIsolationFull ]
+            // Add no default policy set if the namespace
+            // has the label params.labels.purgeDefaults or params.labels.noDefaults set.
+            else if isNotIsolated then []
+            // Add default policy set 'namespace-isolation' if the namespace
+            // does not have the label params.labels.purgeDefaults or params.labels.noDefaults set.
+            else [ config.setNamespaceIsolationBasic ]
+          )
+        ))
+    ;
 
     // Extract the policy sets that should be deleted in that namespace,
     // by subtracting the desired policy sets from the active policy sets.
