@@ -70,26 +70,37 @@ local desiredPolicySets(namespace) =
 local removedPolicySets(namespace) =
   std.setDiff(activePolicySets(namespace), desiredPolicySets(namespace));
 
+local isCiliumPolicy(policyName) =
+  std.startsWith(policyName, 'cilium/');
+
+local shouldRenderPolicy(policyName) =
+  if isCiliumPolicy(policyName) then
+    config.hasCilium
+  else
+    true;
+
 // Generate policy sets.
 local generatePolicyMetadata(policyName, namespace) =
-  local isCiliumPolicy = std.startsWith(policyName, 'cilium/');
-  {
-    apiVersion: 'networking.k8s.io/v1',
-    kind: 'NetworkPolicy',
-    metadata: {
+  (if isCiliumPolicy(policyName) then {
+     apiVersion: 'cilium.io/v2',
+     kind: 'CiliumNetworkPolicy',
+     metadata+: {
+       name: std.strReplace(policyName, 'cilium/', ''),
+     },
+   } else {
+     apiVersion: 'networking.k8s.io/v1',
+     kind: 'NetworkPolicy',
+     metadata: {
+       name: policyName,
+     },
+   }) + {
+    metadata+: {
       annotations: commonAnnotations,
       labels: commonItemLabels,
-      name: policyName,
       namespace: namespace.metadata.name,
     },
-  }
-  + if config.hasCilium && isCiliumPolicy then {
-    apiVersion: 'cilium.io/v2',
-    kind: 'CiliumNetworkPolicy',
-    metadata+: {
-      name: std.strReplace(policyName, 'cilium/', ''),
-    },
-  } else {};
+  };
+
 local generatePolicySet(set, namespace) = std.filter(
   function(it) it != null,
   [
@@ -97,15 +108,16 @@ local generatePolicySet(set, namespace) = std.filter(
       spec: config.policies[policyName],
     }
     for policyName in config.policySets[set]
-    if std.objectHas(config.policies, policyName)
+    if std.objectHas(config.policies, policyName) && shouldRenderPolicy(policyName)
   ]
 );
+
 local purgePolicySet(set, namespace) = std.filter(
   function(it) it != null,
   [
     esp.markForDelete(generatePolicyMetadata(policyName, namespace))
     for policyName in config.policySets[set]
-    if std.objectHas(config.policies, policyName)
+    if std.objectHas(config.policies, policyName) && shouldRenderPolicy(policyName)
   ]
 );
 local generateNamespaceAnnotation(namespace) = [ {
