@@ -36,64 +36,55 @@ spec:
     // Extract the active policy sets from the given namespace object,
     // based on the annotations applied by this ManagedResource.
     local activePolicySets(namespace) =
-      std.map(
-        function(set) std.trim(set),
-        std.split(
-          std.get(std.get(namespace.metadata, 'annotations', { labels: {} }), config.annotations.activePolicySets, ''),
-          ','
-        )
-      );
+      local set = std.get(std.get(namespace.metadata, 'annotations', {}), config.annotations.activePolicySets, '');
+      if set == '' then
+        []
+      else
+        std.map(std.trim, std.split(set, ','));
 
     // Extract the desired policy sets from the given namespace object,
     // based on the labels and desired default behaviour (isolation by default).
-    // Returns an array of policy set names with one or more entries.
+    // Returns an array of policy set names with zero or more entries.
     local desiredPolicySets(namespace) =
-      local ignoreNamespace =
-        std.member(config.ignoredNamespaces, namespace.metadata.name);
-      local isNotIsolated =
-        std.objectHas(std.get(namespace.metadata, 'labels', {}), config.labels.purgeDefaults) ||
-        std.objectHas(std.get(namespace.metadata, 'labels', {}), config.labels.noDefaults);
-      local isFullyIsolated =
-        std.objectHas(std.get(namespace.metadata, 'labels', {}), config.labels.purgeNonBase) ||
-        std.objectHas(std.get(namespace.metadata, 'labels', {}), config.labels.baseDefaults);
+      local objHasLabel(obj, label) =
+        std.objectHas(std.get(obj.metadata, 'labels', {}), label);
 
-      local filterPolicySets = function(it)
-        !std.member([ config.setNamespaceIsolationBasic, config.setNamespaceIsolationFull ], it);
-      local splitPolicySetsLabel =
-        std.map(
-          function(set) std.trim(set),
-          std.split(
-            std.get(std.get(namespace.metadata, 'labels', { labels: {} }), config.labels.policySets, ''),
-            ','
-          )
-        );
+      local defaultPolicySets =
+        // Add default policy set 'namespace-isolation-full' if the namespace
+        // has the label params.labels.baseDefaults set.
+        if objHasLabel(namespace, config.labels.purgeNonBase) || objHasLabel(namespace, config.labels.baseDefaults) then
+          [ config.setNamespaceIsolationFull ]
+        // Add no default policy set if the namespace
+        // has the label params.labels.purgeDefaults or params.labels.noDefaults set.
+        else if objHasLabel(namespace, config.labels.purgeDefaults) || objHasLabel(namespace, config.labels.noDefaults) then
+          []
+        // Add default policy set 'namespace-isolation' if the namespace
+        // does not have the label params.labels.purgeDefaults or params.labels.noDefaults set.
+        else
+          [ config.setNamespaceIsolationBasic ]
+      ;
+
+      // Policy sets based on the label params.labels.policySets.
+      // Filters out the default policy sets, as they should not be added by the policy sets label.
+      // An empty (null, '') label value results in an empty array.
+      local policySetsFromLabel =
+        local sets =
+          std.get(std.get(namespace.metadata, 'labels', {}), config.labels.policySets, '');
+        if sets == '' then
+          []
+        else
+          std.filter(
+            function(set) set != config.setNamespaceIsolationBasic && set != config.setNamespaceIsolationFull,
+            std.map(std.trim, std.split(sets, ','))
+          );
 
       // Return empty array if the namespace is ignored.
       // TODO: we should probably prune the active policy sets in namespaces that are ignored...
       // Maybe even annotate ignored namespaces with 'none'.
-      if ignoreNamespace then
+      if std.member(config.ignoredNamespaces, namespace.metadata.name) then
         []
       else
-        std.set(std.filter(
-          function(set) set != null,
-          // Add policy sets based on the label params.labels.policySets.
-          // Also filter out the default policy sets, as they should not be added by the policy sets label
-          // and non-existing policy sets.
-          std.filter(
-            filterPolicySets,
-            splitPolicySetsLabel
-          ) + (
-            // Add default policy set 'namespace-isolation-full' if the namespace
-            // has the label params.labels.baseDefaults set.
-            if isFullyIsolated then [ config.setNamespaceIsolationFull ]
-            // Add no default policy set if the namespace
-            // has the label params.labels.purgeDefaults or params.labels.noDefaults set.
-            else if isNotIsolated then []
-            // Add default policy set 'namespace-isolation' if the namespace
-            // does not have the label params.labels.purgeDefaults or params.labels.noDefaults set.
-            else [ config.setNamespaceIsolationBasic ]
-          )
-        ))
+        std.set(policySetsFromLabel + defaultPolicySets)
     ;
 
     // Extract the policy sets that should be deleted in that namespace,
