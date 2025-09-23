@@ -154,6 +154,14 @@ if esp.triggerName() == 'namespace' then (
   // namespace is getting deleted.
   if nsTrigger.resource != null && !inDelete(nsTrigger.resource) then
     reconcileNamespace(nsTrigger.resource)
+) else if esp.triggerName() == 'netpol' || esp.triggerName() == 'ciliumnetpol' then (
+  // Handle single namespace update on netpol or ciliumnetpol trigger
+  local namespace = esp.triggerData().resourceEvent.namespace;
+  std.flattenArrays([
+    reconcileNamespace(ns)
+    for ns in esp.context().namespaces
+    if ns.metadata.name == namespace && !inDelete(ns)
+  ])
 ) else (
   // Reconcile all namespaces for jsonnetlibrary update or managedresource
   // reconcile.
