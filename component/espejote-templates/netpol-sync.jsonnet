@@ -18,7 +18,7 @@ local activePolicySets(namespace) =
   if set == '' then
     []
   else
-    std.map(std.trim, std.split(set, ','));
+    std.set(std.map(std.trim, std.split(set, ',')));
 
 // Extract the desired policy sets from the given namespace object,
 // based on the labels and desired default behaviour (isolation by default).
@@ -68,10 +68,7 @@ local desiredPolicySets(namespace) =
 // Extract the policy sets that should be deleted in that namespace,
 // by subtracting the desired policy sets from the active policy sets.
 local removedPolicySets(namespace) =
-  std.filter(
-    function(set) !std.member(desiredPolicySets(namespace), set),
-    activePolicySets(namespace)
-  );
+  std.setDiff(activePolicySets(namespace), desiredPolicySets(namespace));
 
 // Generate policy sets.
 local generatePolicyMetadata(policyName, namespace) =
