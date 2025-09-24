@@ -56,19 +56,27 @@ spec:
           [ config.setNamespaceIsolationBasic ]
       ;
 
-      // Policy sets based on the label params.labels.policySets.
+      // Policy sets based on labels starting with params.labels.policySetPrefix.
+      //   labels:
+      //     set.example.io/airlock: ""
+      //     set.example.io/myapp: ""
+      // would return the policy sets `["airlock", "myapp"]`.
+      // The configured prefix is suffixed with a '/' if it does not already end with one.
       // Filters out the default policy sets, as they should not be added by the policy sets label.
-      // An empty (null, '') label value results in an empty array.
       local policySetsFromLabel =
-        local sets =
-          std.get(std.get(namespace.metadata, 'labels', {}), config.namespaceLabels.policySets, '');
-        if sets == '' then
-          []
+        local prefix = if std.endsWith(config.namespaceLabels.policySetPrefix, '/') then
+          config.namespaceLabels.policySetPrefix
         else
-          std.filter(
-            function(set) set != config.setNamespaceIsolationBasic && set != config.setNamespaceIsolationFull,
-            std.map(std.trim, std.split(sets, ','))
-          );
+          config.namespaceLabels.policySetPrefix + '/';
+
+        std.filter(
+          function(set) set != config.setNamespaceIsolationBasic && set != config.setNamespaceIsolationFull,
+          [
+            lbl[std.length(prefix):]
+            for lbl in std.objectFields(std.get(namespace.metadata, 'labels', {}))
+            if std.startsWith(lbl, prefix) && (namespace.metadata.labels[lbl] == 'true' || namespace.metadata.labels[lbl] == '')
+          ]
+        );
 
       // Return empty array if the namespace is ignored.
       // TODO: we should probably prune the active policy sets in namespaces that are ignored...
