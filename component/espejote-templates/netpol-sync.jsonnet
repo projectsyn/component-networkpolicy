@@ -1,20 +1,10 @@
 local esp = import 'espejote.libsonnet';
 local config = import 'lib/espejote-networkpolicy-sync/config.json';
 
-// Common annotations and labels
-local commonAnnotations = {
-  'syn.tools/source': 'https://github.com/projectsyn/component-networkpolicy.git',
-};
-local commonItemLabels = {
-  'app.kubernetes.io/managed-by': 'espejote',
-  'app.kubernetes.io/part-of': 'syn',
-  'app.kubernetes.io/component': 'networkpolicy',
-};
-
 // Extract the active policy sets from the given namespace object,
 // based on the annotations applied by this ManagedResource.
 local activePolicySets(namespace) =
-  local set = std.get(std.get(namespace.metadata, 'annotations', {}), config.annotations.activePolicySets, '');
+  local set = std.get(std.get(namespace.metadata, 'annotations', {}), config.namespaceAnnotations.activePolicySets, '');
   if set == '' then
     []
   else
@@ -30,11 +20,11 @@ local desiredPolicySets(namespace) =
   local defaultPolicySets =
     // Add default policy set 'namespace-isolation-full' if the namespace
     // has the label params.labels.baseDefaults set.
-    if objHasLabel(namespace, config.labels.purgeNonBase) || objHasLabel(namespace, config.labels.baseDefaults) then
+    if objHasLabel(namespace, config.namespaceLabels.purgeNonBase) || objHasLabel(namespace, config.namespaceLabels.baseDefaults) then
       [ config.setNamespaceIsolationFull ]
     // Add no default policy set if the namespace
     // has the label params.labels.purgeDefaults or params.labels.noDefaults set.
-    else if objHasLabel(namespace, config.labels.purgeDefaults) || objHasLabel(namespace, config.labels.noDefaults) then
+    else if objHasLabel(namespace, config.namespaceLabels.purgeDefaults) || objHasLabel(namespace, config.namespaceLabels.noDefaults) then
       []
     // Add default policy set 'namespace-isolation' if the namespace
     // does not have the label params.labels.purgeDefaults or params.labels.noDefaults set.
@@ -47,7 +37,7 @@ local desiredPolicySets(namespace) =
   // An empty (null, '') label value results in an empty array.
   local policySetsFromLabel =
     local sets =
-      std.get(std.get(namespace.metadata, 'labels', {}), config.labels.policySets, '');
+      std.get(std.get(namespace.metadata, 'labels', {}), config.namespaceLabels.policySets, '');
     if sets == '' then
       []
     else
@@ -95,8 +85,8 @@ local generatePolicyMetadata(policyName, namespace) =
      },
    }) + {
     metadata+: {
-      annotations: commonAnnotations,
-      labels: commonItemLabels,
+      annotations: config.netpolAnnotations,
+      labels: config.netpolLabels,
       namespace: namespace.metadata.name,
     },
   };
@@ -125,7 +115,7 @@ local generateNamespaceAnnotation(namespace) = [ {
   kind: 'Namespace',
   metadata: {
     annotations: {
-      [config.annotations.activePolicySets]: std.join(',', desiredPolicySets(namespace)),
+      [config.namespaceAnnotations.activePolicySets]: std.join(',', desiredPolicySets(namespace)),
     },
     name: namespace.metadata.name,
   },

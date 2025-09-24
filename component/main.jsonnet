@@ -93,6 +93,15 @@ local _nameAllowFromOtherNamespaces = 'allow-from-other-namespaces';
 local _nameAllowFromSameNamespace = 'allow-from-same-namespace';
 local _nameAllowFromClusterNodes = 'allow-from-cluster-nodes';
 
+local _netpolAnnotations = {
+  'syn.tools/source': 'https://github.com/projectsyn/component-networkpolicy.git',
+};
+local _netpolLabels = {
+  'app.kubernetes.io/managed-by': 'espejote',
+  'app.kubernetes.io/part-of': 'syn',
+  'app.kubernetes.io/component': 'networkpolicy',
+};
+
 local _netpolAllowFromOtherNamespaces = {
   policyTypes: [ 'Ingress' ],
   ingress: [ {
@@ -140,8 +149,10 @@ local jsonnetLibrary = esp.jsonnetLibrary(mrName, espNamespace) {
   spec: {
     data: {
       'config.json': std.manifestJson({
-        labels: params.labels,
-        annotations: params.annotations,
+        namespaceAnnotations: params.annotations,
+        namespaceLabels: params.labels,
+        netpolAnnotations: _netpolAnnotations,
+        netpolLabels: _netpolLabels,
         ignoredNamespaces: com.renderArray(params.ignoredNamespaces),
         hasCilium: hasCilium,
         policies: {
@@ -213,10 +224,9 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
         watchResource: {
           apiVersion: 'networking.k8s.io/v1',
           kind: 'NetworkPolicy',
-          matchNames: [
-            _nameAllowFromOtherNamespaces,
-            _nameAllowFromSameNamespace,
-          ],
+          labelSelector: {
+            matchLabels: _netpolLabels,
+          },
           namespace: '',
         },
       },
@@ -225,9 +235,9 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
         watchResource: {
           apiVersion: 'cilium.io/v2',
           kind: 'CiliumNetworkPolicy',
-          matchNames: [
-            _nameAllowFromClusterNodes,
-          ],
+          labelSelector: {
+            matchLabels: _netpolLabels,
+          },
           namespace: '',
         },
       },
