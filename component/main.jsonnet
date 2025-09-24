@@ -102,12 +102,24 @@ local _netpolLabels = {
   'app.kubernetes.io/component': 'networkpolicy',
 };
 
+local allowNamespaceLabels = params.allowNamespaceLabels + std.flattenArrays([
+  if std.isArray(params.allowNamespaceLabelDict[k]) then
+    params.allowNamespaceLabelDict[k]
+  else if std.isObject(params.allowNamespaceLabelDict[k]) then
+    [ params.allowNamespaceLabelDict[k] ]
+  else if params.allowNamespaceLabelDict[k] == null then
+    []
+  else
+    error 'allowNamespaceLabelDict values must be arrays, objects, or null'
+  for k in std.objectFields(params.allowNamespaceLabelDict)
+]);
+
 local _netpolAllowFromOtherNamespaces = {
   policyTypes: [ 'Ingress' ],
   ingress: [ {
     from: [
       { namespaceSelector: { matchLabels: labels } }
-      for labels in params.allowNamespaceLabels
+      for labels in allowNamespaceLabels
     ],
   } ],
   podSelector: {},

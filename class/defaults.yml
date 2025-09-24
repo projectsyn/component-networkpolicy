@@ -17,6 +17,7 @@ parameters:
 
     # Configuration for Default NetworkPolicies.
     allowNamespaceLabels: []
+    allowNamespaceLabelDict: {}
 
     # Configuration for CiliumNetworkPolicies.
     ciliumClusterID: ''

@@ -39,6 +39,27 @@ spec:
                                           "test.example.net/test-group": "main"
                                       }
                                   }
+                              },
+                              {
+                                  "namespaceSelector": {
+                                      "matchLabels": {
+                                          "test.example.net/other-label": ""
+                                      }
+                                  }
+                              },
+                              {
+                                  "namespaceSelector": {
+                                      "matchLabels": {
+                                          "test.example.net/test-group": "label1"
+                                      }
+                                  }
+                              },
+                              {
+                                  "namespaceSelector": {
+                                      "matchLabels": {
+                                          "test.example.net/test-group": "label2"
+                                      }
+                                  }
                               }
                           ]
                       }

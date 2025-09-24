@@ -16,3 +16,10 @@ parameters:
       - my-ignored-namespace
     allowNamespaceLabels:
       - test.example.net/test-group: main
+    allowNamespaceLabelDict:
+      mylabel:
+        - test.example.net/test-group: label1
+        - test.example.net/test-group: label2
+      myOtherLabel:
+        test.example.net/other-label: ""
+      myThirdLabel: null
