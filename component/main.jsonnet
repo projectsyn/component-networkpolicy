@@ -149,7 +149,6 @@ local jsonnetLibrary = esp.jsonnetLibrary(mrName, espNamespace) {
   spec: {
     data: {
       'config.json': std.manifestJson({
-        namespaceAnnotations: params.annotations,
         namespaceLabels: params.labels,
         netpolAnnotations: _netpolAnnotations,
         netpolLabels: _netpolLabels,

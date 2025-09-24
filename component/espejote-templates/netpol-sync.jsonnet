@@ -1,10 +1,12 @@
 local esp = import 'espejote.libsonnet';
 local config = import 'lib/espejote-networkpolicy-sync/config.json';
 
+local activePolicySetsAnnotation = 'network-policies.syn.tools/active-policy-sets';
+
 // Extract the active policy sets from the given namespace object,
 // based on the annotations applied by this ManagedResource.
 local activePolicySets(namespace) =
-  local set = std.get(std.get(namespace.metadata, 'annotations', {}), config.namespaceAnnotations.activePolicySets, '');
+  local set = std.get(std.get(namespace.metadata, 'annotations', {}), activePolicySetsAnnotation, '');
   if set == '' then
     []
   else
@@ -115,7 +117,7 @@ local generateNamespaceAnnotation(namespace) = [ {
   kind: 'Namespace',
   metadata: {
     annotations: {
-      [config.namespaceAnnotations.activePolicySets]: std.join(',', desiredPolicySets(namespace)),
+      [activePolicySetsAnnotation]: std.join(',', desiredPolicySets(namespace)),
     },
     name: namespace.metadata.name,
   },

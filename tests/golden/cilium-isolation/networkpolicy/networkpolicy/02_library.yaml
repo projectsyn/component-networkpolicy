@@ -13,9 +13,6 @@ spec:
           "ignoredNamespaces": [
               "my-ignored-namespace"
           ],
-          "namespaceAnnotations": {
-              "activePolicySets": "network-policies.syn.tools/active-policy-sets"
-          },
           "namespaceLabels": {
               "baseDefaults": "network-policies.syn.tools/base-defaults",
               "noDefaults": "network-policies.syn.tools/no-defaults",
