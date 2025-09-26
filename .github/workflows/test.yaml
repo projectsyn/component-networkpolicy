@@ -36,6 +36,7 @@ jobs:
           - defaults
           - cilium
           - cilium-isolation
+          - legacy-values
     defaults:
       run:
         working-directory: ${{ env.COMPONENT_NAME }}
@@ -53,6 +54,7 @@ jobs:
           - defaults
           - cilium
           - cilium-isolation
+          - legacy-values
     defaults:
       run:
         working-directory: ${{ env.COMPONENT_NAME }}
