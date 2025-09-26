@@ -12,11 +12,17 @@ parameters:
     namespace: syn-espejote
 
   networkpolicy:
+    policySets:
+      default:
+        - my-custom-default
+      airlock:
+        - allow-from-airlock
+
     ignoredNamespaces:
       - my-ignored-namespace
     allowNamespaceLabels:
       - test.example.net/test-group: main
-    allowNamespaceLabelDict:
+    basePolicyAllowNamespaceLabels:
       mylabel:
         - test.example.net/test-group: label1
         - test.example.net/test-group: label2

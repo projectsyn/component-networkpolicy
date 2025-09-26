@@ -102,38 +102,32 @@ local _netpolLabels = {
   'app.kubernetes.io/component': 'networkpolicy',
 };
 
-local allowNamespaceLabels = params.allowNamespaceLabels + std.flattenArrays([
-  if std.isArray(params.allowNamespaceLabelDict[k]) then
-    params.allowNamespaceLabelDict[k]
-  else if std.isObject(params.allowNamespaceLabelDict[k]) then
-    [ params.allowNamespaceLabelDict[k] ]
-  else if params.allowNamespaceLabelDict[k] == null then
-    []
-  else
-    error 'allowNamespaceLabelDict values must be arrays, objects, or null'
-  for k in std.objectFields(params.allowNamespaceLabelDict)
-]);
+local internalBasePolicy =
+  local allowNamespaceLabels =
+    local baseLabels = params.basePolicy.allowNamespaceLabels;
+    params.allowNamespaceLabels + std.flattenArrays([
+      if std.isArray(baseLabels[k]) then
+        baseLabels[k]
+      else if std.isObject(baseLabels[k]) then
+        [ baseLabels[k] ]
+      else if baseLabels[k] == null then
+        []
+      else
+        error 'basePolicy.allowNamespaceLabels values must be arrays, objects, or null'
+      for k in std.objectFields(baseLabels)
+    ]);
+  {
+    policyTypes: [ 'Ingress' ],
+    ingress: [ {
+      from: [
+        { namespaceSelector: { matchLabels: labels } }
+        for labels in allowNamespaceLabels
+      ],
+    } ],
+    podSelector: {},
+  };
 
-local _netpolAllowFromOtherNamespaces = {
-  policyTypes: [ 'Ingress' ],
-  ingress: [ {
-    from: [
-      { namespaceSelector: { matchLabels: labels } }
-      for labels in allowNamespaceLabels
-    ],
-  } ],
-  podSelector: {},
-};
-local _netpolAllowFromSameNamespace = {
-  policyTypes: [ 'Ingress' ],
-  ingress: [ {
-    from: [
-      { podSelector: {} },
-    ],
-  } ],
-  podSelector: {},
-};
-local _netpolAllowFromClusterNodes = {
+local ciliumInternalBasePolicy = {
   endpointSelector: {},
   ingress: if std.length(params.allowFromNodeLabels) > 0 then [
     {
@@ -157,6 +151,11 @@ local _netpolAllowFromClusterNodes = {
   ],
 };
 
+local basePolicies = {
+  'syn-internal-set-base': internalBasePolicy,
+  'cilium/syn-internal-set-base': ciliumInternalBasePolicy,
+};
+
 local jsonnetLibrary = esp.jsonnetLibrary(mrName, espNamespace) {
   spec: {
     data: {
@@ -166,30 +165,14 @@ local jsonnetLibrary = esp.jsonnetLibrary(mrName, espNamespace) {
         netpolLabels: _netpolLabels,
         ignoredNamespaces: com.renderArray(params.ignoredNamespaces),
         hasCilium: hasCilium,
-        policies: {
-                    // Create default policies.
-                    'allow-from-other-namespaces': _netpolAllowFromOtherNamespaces,
-                    'allow-from-same-namespace': _netpolAllowFromSameNamespace,
-                    'cilium/allow-from-cluster-nodes': _netpolAllowFromClusterNodes,
-                  }
-                  // Merge from params.policies.
-                  + com.makeMergeable(params.policies),
+        policies: params.policies + basePolicies,
         policySets: {
-                      // Create default policy sets.
-                      [_nameNamespaceIsolationBasic]: [
-                        'allow-from-other-namespaces',
-                        'allow-from-same-namespace',
-                        'cilium/allow-from-cluster-nodes',
-                      ],
-                      [_nameNamespaceIsolationFull]: [
-                        'allow-from-other-namespaces',
-                        'cilium/allow-from-cluster-nodes',
-                      ],
-                    }
-                    // Merge from params.policySets.
-                    + com.makeMergeable(params.policySets),
-        setNamespaceIsolationBasic: _nameNamespaceIsolationBasic,
-        setNamespaceIsolationFull: _nameNamespaceIsolationFull,
+          [set]: com.renderArray(params.policySets[set])
+          for set in std.objectFields(params.policySets)
+          if params.policySets[set] != null
+        } + {
+          base: std.objectFields(basePolicies),
+        },
       }),
     },
   },
@@ -241,8 +224,9 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
           namespace: '',
         },
       },
+    ] + if hasCilium then [
       {
-        name: 'ciliumpol',
+        name: 'ciliumnetpol',
         watchResource: {
           apiVersion: 'cilium.io/v2',
           kind: 'CiliumNetworkPolicy',
@@ -252,7 +236,7 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
           namespace: '',
         },
       },
-    ],
+    ] else [],
     serviceAccountRef: {
       name: espejoteRBAC[0].metadata.name,
     },

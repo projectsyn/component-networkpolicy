@@ -5,20 +5,38 @@ parameters:
 
     labels:
       noDefaults: network-policies.syn.tools/no-defaults
-      baseDefaults: network-policies.syn.tools/base-defaults
       policySetPrefix: set.network-policies.syn.tools/
-      # Deprecated
-      purgeDefaults: network-policies.syn.tools/purge-defaults
-      purgeNonBase: network-policies.syn.tools/purge-non-base
+      ## Deprecated
+      # Use `base` policy set instead. e.g. `set.network-policies.syn.tools/base: ""`
+      baseDefaults: network-policies.syn.tools/base-defaults
 
     ignoredNamespaces: []
-    policies: {}
-    policySets: {}
+
+    policies:
+      syn-set-default-allow-intra-namespace:
+        ingress:
+        - from:
+          - podSelector: {}
+        podSelector: {}
+        policyTypes:
+        - Ingress
+
+    policySets:
+      default:
+        - syn-set-default-allow-intra-namespace
 
     # Configuration for Default NetworkPolicies.
+    # Deprecated, use basePolicy.allowNamespaceLabels instead.
     allowNamespaceLabels: []
-    allowNamespaceLabelDict: {}
-
     # Configuration for CiliumNetworkPolicies.
-    ciliumClusterID: ''
+    # Deprecated, use basePolicy.cniPlugins.cilium.allowFromNodeLabels instead.
     allowFromNodeLabels: {}
+    # Deprecated, use basePolicy.cniPlugins.cilium.clusterID instead.
+    ciliumClusterID: ''
+
+    basePolicy:
+      allowNamespaceLabels: {}
+      cniPlugins:
+        cilium:
+          clusterID: ''
+          allowFromNodeLabels: {}

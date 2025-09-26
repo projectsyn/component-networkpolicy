@@ -23,16 +23,13 @@ spec:
     local esp = import 'espejote.libsonnet';
     local config = import 'lib/espejote-networkpolicy-sync/config.json';
 
-    local activePolicySetsAnnotation = 'network-policies.syn.tools/active-policy-sets';
+    local activePoliciesAnnotation = 'network-policies.syn.tools/active-policies';
 
     // Extract the active policy sets from the given namespace object,
     // based on the annotations applied by this ManagedResource.
-    local activePolicySets(namespace) =
-      local set = std.get(std.get(namespace.metadata, 'annotations', {}), activePolicySetsAnnotation, '');
-      if set == '' then
-        []
-      else
-        std.set(std.map(std.trim, std.split(set, ',')));
+    local activePolicies(namespace) =
+      local rawSet = std.get(std.get(namespace.metadata, 'annotations', {}), activePoliciesAnnotation, '[]');
+      std.set(std.parseJson(rawSet));
 
     // Extract the desired policy sets from the given namespace object,
     // based on the labels and desired default behaviour (isolation by default).
@@ -42,19 +39,10 @@ spec:
         std.objectHas(std.get(obj.metadata, 'labels', {}), label);
 
       local defaultPolicySets =
-        // Add default policy set 'namespace-isolation-full' if the namespace
-        // has the label params.labels.baseDefaults set.
-        if objHasLabel(namespace, config.namespaceLabels.purgeNonBase) || objHasLabel(namespace, config.namespaceLabels.baseDefaults) then
-          [ config.setNamespaceIsolationFull ]
-        // Add no default policy set if the namespace
-        // has the label params.labels.purgeDefaults or params.labels.noDefaults set.
-        else if objHasLabel(namespace, config.namespaceLabels.purgeDefaults) || objHasLabel(namespace, config.namespaceLabels.noDefaults) then
-          []
-        // Add default policy set 'namespace-isolation' if the namespace
-        // does not have the label params.labels.purgeDefaults or params.labels.noDefaults set.
+        if objHasLabel(namespace, config.namespaceLabels.baseDefaults) then
+          [ 'base' ]
         else
-          [ config.setNamespaceIsolationBasic ]
-      ;
+          [ 'base', 'default' ];
 
       // Policy sets based on labels starting with params.labels.policySetPrefix.
       //   labels:
@@ -62,40 +50,29 @@ spec:
       //     set.example.io/myapp: ""
       // would return the policy sets `["airlock", "myapp"]`.
       // The configured prefix is suffixed with a '/' if it does not already end with one.
-      // Filters out the default policy sets, as they should not be added by the policy sets label.
       local policySetsFromLabel =
         local prefix = if std.endsWith(config.namespaceLabels.policySetPrefix, '/') then
           config.namespaceLabels.policySetPrefix
         else
           config.namespaceLabels.policySetPrefix + '/';
 
-        std.filter(
-          function(set) set != config.setNamespaceIsolationBasic && set != config.setNamespaceIsolationFull,
-          [
-            lbl[std.length(prefix):]
-            for lbl in std.objectFields(std.get(namespace.metadata, 'labels', {}))
-            if std.startsWith(lbl, prefix) && (namespace.metadata.labels[lbl] == 'true' || namespace.metadata.labels[lbl] == '')
-          ]
-        );
+        [
+          lbl[std.length(prefix):]
+          for lbl in std.objectFields(std.get(namespace.metadata, 'labels', {}))
+          if std.startsWith(lbl, prefix) && (namespace.metadata.labels[lbl] == 'true' || namespace.metadata.labels[lbl] == '')
+        ];
 
-      // Return empty array if the namespace is ignored.
-      // TODO: we should probably prune the active policy sets in namespaces that are ignored...
-      // Maybe even annotate ignored namespaces with 'none'.
-      if std.member(config.ignoredNamespaces, namespace.metadata.name) then
+      if std.member(config.ignoredNamespaces, namespace.metadata.name) || objHasLabel(namespace, config.namespaceLabels.noDefaults) then
         []
+      else if std.length(policySetsFromLabel) > 0 then
+        std.set([ 'base' ] + policySetsFromLabel)
       else
-        std.set(policySetsFromLabel + defaultPolicySets)
-    ;
-
-    // Extract the policy sets that should be deleted in that namespace,
-    // by subtracting the desired policy sets from the active policy sets.
-    local removedPolicySets(namespace) =
-      std.setDiff(activePolicySets(namespace), desiredPolicySets(namespace));
+        std.set(defaultPolicySets);
 
     local isCiliumPolicy(policyName) =
       std.startsWith(policyName, 'cilium/');
 
-    local shouldRenderPolicy(policyName) =
+    local cniMatches(policyName) =
       if isCiliumPolicy(policyName) then
         config.hasCilium
       else
@@ -123,52 +100,49 @@ spec:
         },
       };
 
-    local generatePolicySet(set, namespace) = std.filter(
-      function(it) it != null,
-      [
-        generatePolicyMetadata(policyName, namespace) {
-          spec: config.policies[policyName],
-        }
-        for policyName in config.policySets[set]
-        if std.objectHas(config.policies, policyName) && shouldRenderPolicy(policyName)
-      ]
-    );
+    local generatePolicy(policyName, namespace) =
+      generatePolicyMetadata(policyName, namespace) {
+        spec: config.policies[policyName],
+      };
 
-    local purgePolicySet(set, namespace) = std.filter(
-      function(it) it != null,
-      [
-        esp.markForDelete(generatePolicyMetadata(policyName, namespace))
-        for policyName in config.policySets[set]
-        if std.objectHas(config.policies, policyName) && shouldRenderPolicy(policyName)
-      ]
-    );
-    local generateNamespaceAnnotation(namespace) = [ {
-      apiVersion: 'v1',
-      kind: 'Namespace',
-      metadata: {
-        annotations: {
-          [activePolicySetsAnnotation]: std.join(',', desiredPolicySets(namespace)),
-        },
-        name: namespace.metadata.name,
-      },
-    } ];
+    local purgePolicy(policyName, namespace) =
+      esp.markForDelete(generatePolicyMetadata(policyName, namespace));
 
     // Reconcile the given namespace.
     local reconcileNamespace(namespace) =
+      local desiredPolicies = std.set(std.filter(
+        function(policy) std.get(config.policies, policy) != null,
+        std.flattenArrays([
+          config.policySets[set]
+          for set in desiredPolicySets(namespace)
+          if std.get(config.policySets, set) != null
+        ])
+      ));
       // Generate array of NetworkPolicies for the given policy set.
-      std.flattenArrays([
-        generatePolicySet(set, namespace)
-        for set in desiredPolicySets(namespace)
-        if std.objectHas(config.policySets, set)
-      ])
+      [
+        generatePolicy(policy, namespace)
+        for policy in desiredPolicies
+        if cniMatches(policy)
+      ]
       // Generate array of NetworkPolicies to be deleted for the given policy set.
-      + std.flattenArrays([
-        purgePolicySet(set, namespace)
-        for set in removedPolicySets(namespace)
-        if std.objectHas(config.policySets, set)
-      ])
+      +
+      [
+        purgePolicy(policy, namespace)
+        for policy in std.setDiff(activePolicies(namespace), desiredPolicies)
+        if cniMatches(policy)
+      ]
       // Generate annotation for the given namespace containing the new active policy sets.
-      + generateNamespaceAnnotation(namespace);
+      +
+      [ {
+        apiVersion: 'v1',
+        kind: 'Namespace',
+        metadata: {
+          annotations: {
+            [activePoliciesAnnotation]: std.manifestJsonMinified(desiredPolicies),
+          },
+          name: namespace.metadata.name,
+        },
+      } ];
 
     // check if the object is getting deleted by checking if it has
     // `metadata.deletionTimestamp`.
@@ -221,7 +195,7 @@ spec:
             app.kubernetes.io/managed-by: espejote
             app.kubernetes.io/part-of: syn
         namespace: ''
-    - name: ciliumpol
+    - name: ciliumnetpol
       watchResource:
         apiVersion: cilium.io/v2
         kind: CiliumNetworkPolicy

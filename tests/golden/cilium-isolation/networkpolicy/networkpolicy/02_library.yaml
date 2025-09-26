@@ -16,9 +16,7 @@ spec:
           "namespaceLabels": {
               "baseDefaults": "network-policies.syn.tools/base-defaults",
               "noDefaults": "network-policies.syn.tools/no-defaults",
-              "policySetPrefix": "set.network-policies.syn.tools/",
-              "purgeDefaults": "network-policies.syn.tools/purge-defaults",
-              "purgeNonBase": "network-policies.syn.tools/purge-non-base"
+              "policySetPrefix": "set.network-policies.syn.tools/"
           },
           "netpolAnnotations": {
               "syn.tools/source": "https://github.com/projectsyn/component-networkpolicy.git"
@@ -29,7 +27,28 @@ spec:
               "app.kubernetes.io/part-of": "syn"
           },
           "policies": {
-              "allow-from-other-namespaces": {
+              "cilium/syn-internal-set-base": {
+                  "endpointSelector": {
+
+                  },
+                  "ingress": [
+                      {
+                          "fromEntities": [
+                              "host"
+                          ]
+                      },
+                      {
+                          "fromNodes": [
+                              {
+                                  "matchLabels": {
+                                      "syn.tools/cluster-id": "c-green-test-1234"
+                                  }
+                              }
+                          ]
+                      }
+                  ]
+              },
+              "syn-internal-set-base": {
                   "ingress": [
                       {
                           "from": [
@@ -50,7 +69,7 @@ spec:
                       "Ingress"
                   ]
               },
-              "allow-from-same-namespace": {
+              "syn-set-default-allow-intra-namespace": {
                   "ingress": [
                       {
                           "from": [
@@ -68,40 +87,15 @@ spec:
                   "policyTypes": [
                       "Ingress"
                   ]
-              },
-              "cilium/allow-from-cluster-nodes": {
-                  "endpointSelector": {
-
-                  },
-                  "ingress": [
-                      {
-                          "fromEntities": [
-                              "host"
-                          ]
-                      },
-                      {
-                          "fromNodes": [
-                              {
-                                  "matchLabels": {
-                                      "syn.tools/cluster-id": "c-green-test-1234"
-                                  }
-                              }
-                          ]
-                      }
-                  ]
               }
           },
           "policySets": {
-              "namespace-isolation-basic": [
-                  "allow-from-other-namespaces",
-                  "allow-from-same-namespace",
-                  "cilium/allow-from-cluster-nodes"
+              "base": [
+                  "cilium/syn-internal-set-base",
+                  "syn-internal-set-base"
               ],
-              "namespace-isolation-full": [
-                  "allow-from-other-namespaces",
-                  "cilium/allow-from-cluster-nodes"
+              "default": [
+                  "syn-set-default-allow-intra-namespace"
               ]
-          },
-          "setNamespaceIsolationBasic": "namespace-isolation-basic",
-          "setNamespaceIsolationFull": "namespace-isolation-full"
+          }
       }
