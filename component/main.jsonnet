@@ -5,7 +5,28 @@ local kube = import 'lib/kube.libjsonnet';
 local inv = kap.inventory();
 
 local params = inv.parameters.networkpolicy;
-local allowLabels = params.allowNamespaceLabels;
+
+local allowLabels =
+  local deprecatedLabels = if std.length(params.allowNamespaceLabels) == 0 then
+    []
+  else
+    std.trace(
+      "Using deprecated parameter 'allowNamespaceLabels'. Please use 'basePolicy.allowNamespaceLabels' instead.",
+      params.allowNamespaceLabels
+    );
+  local baseLabels = params.basePolicy.allowNamespaceLabels;
+  params.allowNamespaceLabels + std.flattenArrays([
+    if std.isArray(baseLabels[k]) then
+      baseLabels[k]
+    else if std.isObject(baseLabels[k]) then
+      [ baseLabels[k] ]
+    else if baseLabels[k] == null then
+      []
+    else
+      error 'basePolicy.allowNamespaceLabels values must be arrays, objects, or null'
+    for k in std.objectFields(baseLabels)
+  ]);
+
 local ignoredNamespaces = com.renderArray(params.ignoredNamespaces);
 
 local plugin = std.asciiLower(params.networkPlugin);
@@ -50,13 +71,21 @@ local allowOthers = kube.NetworkPolicy('allow-from-other-namespaces') {
   },
 };
 
+local ciliumClusterID =
+  if params.basePolicy.cniPlugins.cilium.clusterID != '' then
+    params.basePolicy.cniPlugins.cilium.clusterID
+  else if params.ciliumClusterID != '' then
+    std.trace("Using deprecated parameter 'ciliumClusterID'. Please use 'basePolicy.cniPlugins.cilium.clusterID' instead.", params.ciliumClusterID)
+  else
+    '';
+
 local podSelector =
   if
-    plugin == 'cilium' && params.ciliumClusterID != ''
+    plugin == 'cilium' && ciliumClusterID != ''
   then
     {
       matchLabels: {
-        'io.cilium.k8s.policy.cluster': params.ciliumClusterID,
+        'io.cilium.k8s.policy.cluster': ciliumClusterID,
       },
     }
   else
@@ -78,8 +107,15 @@ local allowSameNamespace = kube.NetworkPolicy('allow-from-same-namespace') {
   },
 };
 
+local allowFromNodeLabels =
+  local legacyLabels = if std.length(params.allowFromNodeLabels) > 0 then
+    std.trace("Using deprecated parameter 'allowFromNodeLabels'. Please use 'basePolicy.cniPlugins.cilium.allowFromNodeLabels' instead.", params.allowFromNodeLabels)
+  else
+    {};
+  legacyLabels + params.basePolicy.cniPlugins.cilium.allowFromNodeLabels;
+
 local ciliumNetworkPlugins =
-  local ingressPolicies = if std.length(params.allowFromNodeLabels) > 0 then [
+  local ingressPolicies = if std.length(allowFromNodeLabels) > 0 then [
     {
       // always allow access from local node's host network, e.g. health checks.
       fromEntities: [ 'host' ],
@@ -87,7 +123,7 @@ local ciliumNetworkPlugins =
     {
       fromNodes: [
         {
-          matchLabels: params.allowFromNodeLabels,
+          matchLabels: allowFromNodeLabels,
         },
       ],
     },
