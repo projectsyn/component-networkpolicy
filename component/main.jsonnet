@@ -18,6 +18,7 @@ local commonItemLabels = {
   'app.kubernetes.io/managed-by': 'espejo',
   'app.kubernetes.io/part-of': 'syn',
   'app.kubernetes.io/component': 'networkpolicy',
+  'internal.network-policies.syn.tools/migration-mark-for-purge': 'true',
 };
 
 local commonSyncLabels = {
@@ -104,6 +105,8 @@ local ciliumNetworkPlugins =
       kind: 'CiliumNetworkPolicy',
       metadata: {
         name: 'allow-from-cluster-nodes',
+        annotations+: commonAnnotations,
+        labels+: commonItemLabels,
       },
       spec: {
         endpointSelector: {},
