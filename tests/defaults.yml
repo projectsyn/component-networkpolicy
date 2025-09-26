@@ -11,5 +11,8 @@ parameters:
   networkpolicy:
     ignoredNamespaces:
       - my-ignored-namespace
-    allowNamespaceLabels:
-      - test.example.net/test-group: main
+
+    basePolicy:
+      allowNamespaceLabels:
+        test-group:
+          - test.example.net/test-group: main

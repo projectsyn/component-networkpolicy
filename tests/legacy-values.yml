@@ -1,0 +1,26 @@
+parameters:
+  kapitan:
+    dependencies:
+      - type: https
+        source: https://raw.githubusercontent.com/projectsyn/component-espejo/v1.0.1/lib/espejo.libsonnet
+        output_path: vendor/lib/espejo.libsonnet
+
+  espejo:
+    namespace: espejo
+
+  networkpolicy:
+    ignoredNamespaces:
+      - my-ignored-namespace
+    networkPlugin: Cilium
+
+
+    # Configuration for Default NetworkPolicies.
+    # Deprecated, use basePolicy.allowNamespaceLabels instead.
+    allowNamespaceLabels:
+      - test.example.net/test-group: main
+    # Configuration for CiliumNetworkPolicies.
+    # Deprecated, use basePolicy.cniPlugins.cilium.allowFromNodeLabels instead.
+    allowFromNodeLabels:
+      syn.tools/cluster-id: ${cluster:name}
+    # Deprecated, use basePolicy.cniPlugins.cilium.clusterID instead.
+    ciliumClusterID: ${cluster:name}

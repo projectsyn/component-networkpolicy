@@ -11,9 +11,14 @@ parameters:
   networkpolicy:
     ignoredNamespaces:
       - my-ignored-namespace
-    allowNamespaceLabels:
-      - test.example.net/test-group: main
     networkPlugin: Cilium
-    ciliumClusterID: ${cluster:name}
-    allowFromNodeLabels:
-      syn.tools/cluster-id: ${cluster:name}
+
+    basePolicy:
+      allowNamespaceLabels:
+        test-group:
+          - test.example.net/test-group: main
+      cniPlugins:
+        cilium:
+          clusterID: ${cluster:name}
+          allowFromNodeLabels:
+            syn.tools/cluster-id: ${cluster:name}

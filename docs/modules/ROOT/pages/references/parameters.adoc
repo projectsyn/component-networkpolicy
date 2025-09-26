@@ -51,6 +51,12 @@ The `purge*` labels should always be acompanied by their respective `noDefaults`
 
 == `allowNamespaceLabels`
 
+[WARNING]
+====
+Deprecated: This parameter is deprecated and will be removed in a future release.
+Please use `basePolicy.allowNamespaceLabels` instead.
+====
+
 [horizontal]
 type:: list of tuples
 default:: empty list
@@ -70,6 +76,36 @@ allowNamespaceLabels:
 
 In the above example, traffic will be allowed if a namespaces has the label `my-label-a=true` AND `my-label-b=true`.
 Traffic will also be allowed if a namespace is labeled `my-label-c`.
+
+== `basePolicy.allowNamespaceLabels`
+
+[horizontal]
+type:: dictionary[string](list of tuples|tuples|null)
+default:: `{}`
+example::
++
+[source,yaml]
+----
+allowNamespaceLabels:
+  mylabel:
+    - test.example.net/test-group: group1
+    - test.example.net/test-group: group2
+  myOtherLabel:
+    test.example.net/ingress-group: "group1"
+    test.example.net/ingress-group: "group2"
+  myThirdLabel: null
+----
+
+The key is for easier merging in commodore and has no semantic meaning.
+The value is either a list of tuples, a single tuple or `null`.
+The values are a list of labels matching namespaces to allow traffic from.
+Each list item can contain several key value pairs.
+They result in an `AND` condition.
+Individual list items will result in an `OR` condition.
+
+In the above example, traffic will be allowed if a namespaces has the label `test.example.net/test-group=group1` OR `test.example.net/test-group=group2`.
+Traffic will also be allowed if a namespace has the label `test.example.net/ingress-group=group1` AND `test.example.net/ingress-group=group2`.
+
 
 == `ignoredNamespaces`
 
@@ -97,6 +133,16 @@ Otherwise some policies might not be applied correctly.
 
 == `ciliumClusterID`
 
+[WARNING]
+====
+Deprecated: This parameter is deprecated and will be removed in a future release.
+Please use `basePolicy.cniPlugins.cilium.clusterID` instead.
+====
+
+See parameter `basePolicy.cniPlugins.cilium.clusterID` for the replacement.
+
+== `basePolicy.cniPlugins.cilium.clusterID`
+
 [horizontal]
 type:: string
 default:: `''`
@@ -118,7 +164,18 @@ spec:
 ----
 <1> `<ciliumClusterID>` is replaced with the string provided in this parameter
 
+
 == `allowFromNodeLabels`
+
+[WARNING]
+====
+Deprecated: This parameter is deprecated and will be removed in a future release.
+Please use `basePolicy.cniPlugins.cilium.allowFromNodeLabels` instead.
+====
+
+See parameter `basePolicy.cniPlugins.cilium.allowFromNodeLabels` for the replacement.
+
+== `basePolicy.cniPlugins.cilium.allowFromNodeLabels`
 
 [horizontal]
 type:: dict

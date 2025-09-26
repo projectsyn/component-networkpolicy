@@ -30,6 +30,7 @@ spec:
           app.kubernetes.io/component: networkpolicy
           app.kubernetes.io/managed-by: espejo
           app.kubernetes.io/part-of: syn
+          internal.network-policies.syn.tools/migration-mark-for-purge: 'true'
           name: allow-from-same-namespace
         name: allow-from-same-namespace
       spec:
@@ -48,6 +49,7 @@ spec:
           app.kubernetes.io/component: networkpolicy
           app.kubernetes.io/managed-by: espejo
           app.kubernetes.io/part-of: syn
+          internal.network-policies.syn.tools/migration-mark-for-purge: 'true'
           name: allow-from-other-namespaces
         name: allow-from-other-namespaces
       spec:
