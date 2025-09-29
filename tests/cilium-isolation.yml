@@ -15,9 +15,21 @@ parameters:
   networkpolicy:
     ignoredNamespaces:
       - my-ignored-namespace
-    allowNamespaceLabels:
-      - test.example.net/test-group: main
     networkPlugin: Cilium
-    ciliumClusterID: ${cluster:name}
-    allowFromNodeLabels:
-      syn.tools/cluster-id: ${cluster:name}
+
+    policies:
+      syn-set-default-allow-intra-namespace:
+        ~ingress:
+          - from:
+              - podSelector:
+                  matchLabels:
+                    io.cilium.k8s.policy.cluster: ${cluster:name}
+
+    basePolicy:
+      allowNamespaceLabels:
+        test-group:
+          - test.example.net/test-group: main
+      cniPlugins:
+        cilium:
+          allowFromNodeLabels:
+            syn.tools/cluster-id: ${cluster:name}

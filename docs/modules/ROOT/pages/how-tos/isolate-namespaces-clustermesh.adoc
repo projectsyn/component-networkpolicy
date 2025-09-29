@@ -1,0 +1,17 @@
+= Isolate namespaces in a Cilium cluster mesh
+
+By default Cilium allows connectivity between namespaces with the same name across clusters in a cluster mesh.
+
+If this behavior isn't desired, the default intra namespace policy can be updated with the Cilium cluster ID (which is configured in parameter `cilium.cilium_helm_values.cluster.name` when using cluster mesh).
+
+[source,yaml]
+----
+networkpolicy:
+  policies:
+    syn-set-default-allow-intra-namespace:
+      ~ingress:
+      - from:
+        - podSelector:
+            matchLabels:
+              io.cilium.k8s.policy.cluster: ${cluster:name} <1>
+----

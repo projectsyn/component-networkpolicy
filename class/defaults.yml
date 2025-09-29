@@ -15,28 +15,18 @@ parameters:
     policies:
       syn-set-default-allow-intra-namespace:
         ingress:
-        - from:
-          - podSelector: {}
+          - from:
+              - podSelector: {}
         podSelector: {}
         policyTypes:
-        - Ingress
+          - Ingress
 
     policySets:
       default:
         - syn-set-default-allow-intra-namespace
 
-    # Configuration for Default NetworkPolicies.
-    # Deprecated, use basePolicy.allowNamespaceLabels instead.
-    allowNamespaceLabels: []
-    # Configuration for CiliumNetworkPolicies.
-    # Deprecated, use basePolicy.cniPlugins.cilium.allowFromNodeLabels instead.
-    allowFromNodeLabels: {}
-    # Deprecated, use basePolicy.cniPlugins.cilium.clusterID instead.
-    ciliumClusterID: ''
-
     basePolicy:
       allowNamespaceLabels: {}
       cniPlugins:
         cilium:
-          clusterID: ''
           allowFromNodeLabels: {}

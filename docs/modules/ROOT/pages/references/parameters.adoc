@@ -49,34 +49,6 @@ All managed policies except the platform required policies will be purged from t
 The `purge*` labels should always be acompanied by their respective `noDefaults` or `baseDefaults` label.
 ====
 
-== `allowNamespaceLabels`
-
-[WARNING]
-====
-Deprecated: This parameter is deprecated and will be removed in a future release.
-Please use `basePolicy.allowNamespaceLabels` instead.
-====
-
-[horizontal]
-type:: list of tuples
-default:: empty list
-
-A list of labels matching namespaces to allow traffic from.
-Each list item can contain several key value pairs.
-They result in an `AND` condition.
-Individual list items will result in an `OR` condition.
-
-[source,yaml]
-----
-allowNamespaceLabels:
-  - my-label-a: true
-    my-label-b: true
-  - my-label-c: true
-----
-
-In the above example, traffic will be allowed if a namespaces has the label `my-label-a=true` AND `my-label-b=true`.
-Traffic will also be allowed if a namespace is labeled `my-label-c`.
-
 == `basePolicy.allowNamespaceLabels`
 
 [horizontal]
@@ -116,50 +88,6 @@ default:: empty list
 A list of namespace names where no default NetworkPolicies will be created.
 Default NetworkPolicies will be purged for all namespaces in this list.
 Entries in the list can be removed by adding the entry prefixed with a `~`.
-
-== `ciliumClusterID`
-
-[WARNING]
-====
-Deprecated: This parameter is deprecated and will be removed in a future release.
-Please use `basePolicy.cniPlugins.cilium.clusterID` instead.
-====
-
-See parameter `basePolicy.cniPlugins.cilium.clusterID` for the replacement.
-
-== `basePolicy.cniPlugins.cilium.clusterID`
-
-[horizontal]
-type:: string
-default:: `''`
-
-This parameter controls whether the component isolates namespaces with the same name from each other in a Cilium cluster mesh.
-The default behavior if the parameter is empty is to allow connectivity between namespaces with the same name across clusters.
-
-If this behavior isn't desired, this parameter can be set to the cluster's Cilium cluster ID (which is configured in parameter `cilium.cilium_helm_values.cluster.name` when using cluster mesh).
-When the parameter isn't empty, the component will adjust the `allow-from-same-namespace` policy with the following snippet:
-
-[source,yaml]
-----
-spec:
- ingress:
- - from:
-   - podSelector:
-       matchLabels:
-         io.cilium.k8s.policy.cluster: <ciliumClusterID> <1>
-----
-<1> `<ciliumClusterID>` is replaced with the string provided in this parameter
-
-
-== `allowFromNodeLabels`
-
-[WARNING]
-====
-Deprecated: This parameter is deprecated and will be removed in a future release.
-Please use `basePolicy.cniPlugins.cilium.allowFromNodeLabels` instead.
-====
-
-See parameter `basePolicy.cniPlugins.cilium.allowFromNodeLabels` for the replacement.
 
 == `basePolicy.cniPlugins.cilium.allowFromNodeLabels`
 

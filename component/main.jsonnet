@@ -105,7 +105,7 @@ local _netpolLabels = {
 local internalBasePolicy =
   local allowNamespaceLabels =
     local baseLabels = params.basePolicy.allowNamespaceLabels;
-    params.allowNamespaceLabels + std.flattenArrays([
+    std.flattenArrays([
       if std.isArray(baseLabels[k]) then
         baseLabels[k]
       else if std.isObject(baseLabels[k]) then
@@ -128,8 +128,9 @@ local internalBasePolicy =
   };
 
 local ciliumInternalBasePolicy = {
+  local nodeLabels = params.basePolicy.cniPlugins.cilium.allowFromNodeLabels,
   endpointSelector: {},
-  ingress: if std.length(params.allowFromNodeLabels) > 0 then [
+  ingress: if std.length(nodeLabels) > 0 then [
     {
       // always allow access from local node's host network, e.g. health checks.
       fromEntities: [ 'host' ],
@@ -137,7 +138,7 @@ local ciliumInternalBasePolicy = {
     {
       fromNodes: [
         {
-          matchLabels: params.allowFromNodeLabels,
+          matchLabels: nodeLabels,
         },
       ],
     },

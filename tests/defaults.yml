@@ -20,12 +20,8 @@ parameters:
 
     ignoredNamespaces:
       - my-ignored-namespace
-    allowNamespaceLabels:
-      - test.example.net/test-group: main
-    basePolicyAllowNamespaceLabels:
-      mylabel:
-        - test.example.net/test-group: label1
-        - test.example.net/test-group: label2
-      myOtherLabel:
-        test.example.net/other-label: ""
-      myThirdLabel: null
+
+    basePolicy:
+      allowNamespaceLabels:
+        test-group:
+          - test.example.net/test-group: main

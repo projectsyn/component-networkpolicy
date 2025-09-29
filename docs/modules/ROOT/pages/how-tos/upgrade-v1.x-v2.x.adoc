@@ -1,0 +1,35 @@
+= Upgrade from v1.x to v2.x
+
+[IMPORTANT]
+====
+Version 1.6.0+ of this component has been released to ease the transition to version 2.x.
+
+It allows migrating all parameters that have been deprecated in version 2.x to their replacements in the `basePolicy` section.
+====
+
+== Purging network policies
+
+When changing policy sets, existing policies managed by this component are now automatically deleted.
+
+The parameter `labels.purgeDefaults` and `labels.purgeNonBase` are removed and don't have any effect anymore.
+
+== Moved base configuration
+
+Configuration for the base policy has been moved to the `basePolicy` section.
+
+[cols="1,1,1"]
+|===
+|Deprecated |Replacement |Notes
+
+|`allowNamespaceLabels: []`
+|`basePolicy.allowNamespaceLabels: {}`
+|The type has changed from list to dictionary. See xref:references/parameters.adoc[].
+
+|`allowFromNodeLabels: {}`
+|`basePolicy.cniPlugins.cilium.allowFromNodeLabels: {}`
+|Direct replacement.
+
+|`ciliumClusterID: ''` or `basePolicy.cniPlugins.cilium.clusterID: ''`
+|none
+|Removed, see xref:how-tos/isolate-namespaces-clustermesh.adoc[].
+|===
