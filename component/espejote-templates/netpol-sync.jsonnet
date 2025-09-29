@@ -1,6 +1,8 @@
 local esp = import 'espejote.libsonnet';
 local config = import 'lib/espejote-networkpolicy-sync/config.json';
 
+local context = esp.context();
+
 local activePoliciesAnnotation = 'network-policies.syn.tools/active-policies';
 
 // Extract the active policy sets from the given namespace object,
@@ -126,6 +128,11 @@ local reconcileNamespace(namespace) =
 // `metadata.deletionTimestamp`.
 local inDelete(obj) = std.get(obj.metadata, 'deletionTimestamp', '') != '';
 
+local legacyPolicyPurge = [
+  esp.markForDelete(pol)
+  for pol in std.get(context, 'legacy-netpols', []) + std.get(context, 'legacy-ciliumnetpols', [])
+];
+
 // Do the thing
 if esp.triggerName() == 'namespace' then (
   // Handle single namespace update on namespace trigger
@@ -140,16 +147,18 @@ if esp.triggerName() == 'namespace' then (
   local namespace = esp.triggerData().resourceEvent.namespace;
   std.flattenArrays([
     reconcileNamespace(ns)
-    for ns in esp.context().namespaces
+    for ns in context.namespaces
     if ns.metadata.name == namespace && !inDelete(ns)
   ])
 ) else (
   // Reconcile all namespaces for jsonnetlibrary update or managedresource
   // reconcile.
-  local namespaces = esp.context().namespaces;
+  local namespaces = context.namespaces;
   std.flattenArrays([
     reconcileNamespace(ns)
     for ns in namespaces
     if !inDelete(ns)
   ])
+  +
+  legacyPolicyPurge
 )

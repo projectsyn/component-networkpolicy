@@ -179,6 +179,12 @@ local jsonnetLibrary = esp.jsonnetLibrary(mrName, espNamespace) {
   },
 };
 
+local purgeLegacySelector = {
+  matchLabels: {
+    'internal.network-policies.syn.tools/migration-mark-for-purge': 'true',
+  },
+};
+
 local managedResource = esp.managedResource(mrName, espNamespace) {
   metadata+: {
     annotations: {
@@ -197,7 +203,26 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
           kind: 'Namespace',
         },
       },
-    ],
+      {
+        name: 'legacy-netpols',
+        resource: {
+          apiVersion: 'networking.k8s.io/v1',
+          kind: 'NetworkPolicy',
+          namespace: '',
+          labelSelector: purgeLegacySelector,
+        },
+      },
+    ] + if hasCilium then [
+      {
+        name: 'legacy-ciliumnetpols',
+        resource: {
+          apiVersion: 'cilium.io/v2',
+          kind: 'CiliumNetworkPolicy',
+          namespace: '',
+          labelSelector: purgeLegacySelector,
+        },
+      },
+    ] else [],
     triggers: [
       {
         name: 'jslib',

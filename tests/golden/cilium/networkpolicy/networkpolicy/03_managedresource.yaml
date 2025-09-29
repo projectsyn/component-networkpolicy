@@ -17,11 +17,29 @@ spec:
       resource:
         apiVersion: v1
         kind: Namespace
+    - name: legacy-netpols
+      resource:
+        apiVersion: networking.k8s.io/v1
+        kind: NetworkPolicy
+        labelSelector:
+          matchLabels:
+            internal.network-policies.syn.tools/migration-mark-for-purge: 'true'
+        namespace: ''
+    - name: legacy-ciliumnetpols
+      resource:
+        apiVersion: cilium.io/v2
+        kind: CiliumNetworkPolicy
+        labelSelector:
+          matchLabels:
+            internal.network-policies.syn.tools/migration-mark-for-purge: 'true'
+        namespace: ''
   serviceAccountRef:
     name: espejote-networkpolicy-sync
   template: |
     local esp = import 'espejote.libsonnet';
     local config = import 'lib/espejote-networkpolicy-sync/config.json';
+
+    local context = esp.context();
 
     local activePoliciesAnnotation = 'network-policies.syn.tools/active-policies';
 
@@ -148,6 +166,11 @@ spec:
     // `metadata.deletionTimestamp`.
     local inDelete(obj) = std.get(obj.metadata, 'deletionTimestamp', '') != '';
 
+    local legacyPolicyPurge = [
+      esp.markForDelete(pol)
+      for pol in std.get(context, 'legacy-netpols', []) + std.get(context, 'legacy-ciliumnetpols', [])
+    ];
+
     // Do the thing
     if esp.triggerName() == 'namespace' then (
       // Handle single namespace update on namespace trigger
@@ -162,18 +185,20 @@ spec:
       local namespace = esp.triggerData().resourceEvent.namespace;
       std.flattenArrays([
         reconcileNamespace(ns)
-        for ns in esp.context().namespaces
+        for ns in context.namespaces
         if ns.metadata.name == namespace && !inDelete(ns)
       ])
     ) else (
       // Reconcile all namespaces for jsonnetlibrary update or managedresource
       // reconcile.
-      local namespaces = esp.context().namespaces;
+      local namespaces = context.namespaces;
       std.flattenArrays([
         reconcileNamespace(ns)
         for ns in namespaces
         if !inDelete(ns)
       ])
+      +
+      legacyPolicyPurge
     )
   triggers:
     - name: jslib
