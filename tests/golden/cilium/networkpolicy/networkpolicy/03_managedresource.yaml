@@ -3,8 +3,13 @@ kind: ManagedResource
 metadata:
   annotations:
     syn.tools/description: |
-      This managed resource purges existing network policies if they are
-      deployed in a namespace that is in the list of ignored namespaces.
+      Manages NetworkPolicies and CiliumNetworkPolicies based on namespace labels.
+
+      With no further configuration, this component will apply a default set of
+      NetworkPolicies to all namespaces.
+
+      To customize the applied policies, you can use labels on namespaces to select
+      additional policy sets. See https://hub.syn.tools/networkpolicy/index.html for details.
   labels:
     app.kubernetes.io/name: espejote-networkpolicy-sync
   name: espejote-networkpolicy-sync
@@ -50,8 +55,14 @@ spec:
       std.set(std.parseJson(rawSet));
 
     // Extract the desired policy sets from the given namespace object,
-    // based on the labels and desired default behaviour (isolation by default).
-    // Returns an array of policy set names with zero or more entries.
+    // Returns an empty array if the namespace is in the ignoredNamespaces list or the no-defaults label is set.
+    // If no policy sets are set by labels, the default policy sets are returned and the legacy base-defaults label is respected.
+    // If any policy set labels are set, those are returned plus the 'base' policy set.
+    // It is valid to set the base policy set explicitly via labels.
+    //   ignoredNamespaces / no-defaults label -> []
+    //   no policy set labels -> [ 'base', 'default' ] or [ 'base' ] if base-defaults label is set
+    //   policy set labels -> [ 'base', <policy sets from labels> ]
+    //   policy set "base" set -> [ 'base' ]
     local desiredPolicySets(namespace) =
       local objHasLabel(obj, label) =
         std.objectHas(std.get(obj.metadata, 'labels', {}), label);

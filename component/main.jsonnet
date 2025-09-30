@@ -189,8 +189,13 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
   metadata+: {
     annotations: {
       'syn.tools/description': |||
-        This managed resource purges existing network policies if they are
-        deployed in a namespace that is in the list of ignored namespaces.
+        Manages NetworkPolicies and CiliumNetworkPolicies based on namespace labels.
+
+        With no further configuration, this component will apply a default set of
+        NetworkPolicies to all namespaces.
+
+        To customize the applied policies, you can use labels on namespaces to select
+        additional policy sets. See https://hub.syn.tools/networkpolicy/index.html for details.
       |||,
     },
   },

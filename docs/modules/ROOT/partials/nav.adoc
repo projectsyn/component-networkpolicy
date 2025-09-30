@@ -2,3 +2,4 @@
 * xref:references/parameters.adoc[Parameters]
 * xref:how-tos/upgrade-v1.x-v2.x.adoc[]
 * xref:how-tos/isolate-namespaces-clustermesh.adoc[]
+* xref:how-tos/using-customizing-policies.adoc[]

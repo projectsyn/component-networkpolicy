@@ -12,8 +12,14 @@ local activePolicies(namespace) =
   std.set(std.parseJson(rawSet));
 
 // Extract the desired policy sets from the given namespace object,
-// based on the labels and desired default behaviour (isolation by default).
-// Returns an array of policy set names with zero or more entries.
+// Returns an empty array if the namespace is in the ignoredNamespaces list or the no-defaults label is set.
+// If no policy sets are set by labels, the default policy sets are returned and the legacy base-defaults label is respected.
+// If any policy set labels are set, those are returned plus the 'base' policy set.
+// It is valid to set the base policy set explicitly via labels.
+//   ignoredNamespaces / no-defaults label -> []
+//   no policy set labels -> [ 'base', 'default' ] or [ 'base' ] if base-defaults label is set
+//   policy set labels -> [ 'base', <policy sets from labels> ]
+//   policy set "base" set -> [ 'base' ]
 local desiredPolicySets(namespace) =
   local objHasLabel(obj, label) =
     std.objectHas(std.get(obj.metadata, 'labels', {}), label);

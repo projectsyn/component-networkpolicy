@@ -1,0 +1,124 @@
+= Using and Customizing Policies
+
+By installing this component default policies are created in every namespace.
+These policies are designed to be secure by default, while still allowing essential communication for most applications.
+However, depending on your specific use case, you might want to customize these policies to better fit your application's needs.
+
+== Understanding Default Policies
+
+The default policies created by this component typically include:
+
+* `base` policies: Allow essential traffic such as kubelet readiness probes.
+* `default` policies: Allow all traffic between pods within the same namespace.
+
+The `base` policy is calculated based on the keys in `basePolicy` and can't be fully customized.
+The `default` policy can be customized like every other policy using the `policies` and `policySet` keys in the component configuration.
+
+== Applying Custom Policies to a Namespace
+
+Every non-ignored namespace has the `base` and `default` policies applied by default.
+
+Custom policy sets can be applied by labeling the namespace with a `set.network-policies.syn.tools/<policy-set-name>: ""` label.
+Where `<policy-set-name>` corresponds to the name of the policy set defined in the component configuration.
+The `default` policy is removed as soon as any other policy set is applied to the namespace and can be re-applied by adding the `set.network-policies.syn.tools/default: ""` label to the namespace.
+The `base` policy is always applied and can't be removed.
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-namespace
+  labels:
+    set.network-policies.syn.tools/default: "" <1>
+    set.network-policies.syn.tools/ingress: "" <2>
+    set.network-policies.syn.tools/gateway: ""
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-namespace
+  labels:
+    set.network-policies.syn.tools/base: "" <3>
+----
+<1> This applies the `default` policy set to the namespace.
+This policy is otherwise removed when any other policy set is applied.
+<2> This applies the custom `ingress` and `gateway` policy sets to the namespace.
+<3> Reduces network policies to only the `base` policy.
+It is valid to specify the `base` policy set explicitly.
+
+== Customizing Policies
+
+Custom policies can be defined in the component configuration using the `policies` key.
+These policies can then be grouped into policy sets using the `policySet` key.
+The resulting sets can be applied to namespaces as described above.
+
+[TIP]
+====
+It is allowed to reference the same policy in multiple policy sets.
+Even if more than one of those policy sets are applied to a namespace, the policy will only be created once.
+====
+
+[source,yaml]
+----
+policies:
+  allow-to-cache: <1>
+    egress:
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            app.kubernetes.io/component: cache
+    podSelector: {}
+    policyTypes:
+    - Egress
+  allow-to-databases:
+    egress: {...}
+  allow-from-gateway:
+    ingress: {...}
+  allow-from-openshift-ingress:
+    ingress: {...}
+  cilium/dns-visibility: <2>
+    endpointSelector: {}
+    egress:
+    - toPorts:
+      - ports:
+        - port: "53"
+          protocol: ANY
+        rules:
+          dns:
+          - matchPattern: "*"
+policySets:
+  default:
+  - ~syn-set-default-allow-intra-namespace <3>
+  gateway:
+  - allow-from-gateway
+  openshift-ingress:
+  - allow-from-openshift-ingress
+  backend:
+  - syn-set-default-allow-intra-namespace <4>
+  - allow-to-databases
+  - allow-to-cache
+  - cilium/dns-visibility
+----
+<1> Defines a custom policy named `allow-to-cache`.
+The values are merged into the spec.
+<2> Custom policies can be prefixed with a CNI provider name (e.g. `cilium/`) to indicate that they are specific to that provider.
+This policy will only be created if the CNI provider matches.
+Currently, only Cilium (`cilium/`) is supported.
+<3> Removes the intra-namespace allow-all rule from the `default` policy set.
+Sets are rendered with the commodore https://syn.tools/commodore/reference/commodore-libjsonnet.html#_renderarrayarr[`renderArray(arr)`] function and allows removal of array entries using the `~` operator.
+<4> Keeps the intra-namespace allow-all rule in the `backend` policy set.
+
+A namespace could be annotated as such to apply the `gateway` and `backend` policy sets:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-namespace
+  labels:
+    set.network-policies.syn.tools/gateway: ""
+    set.network-policies.syn.tools/backend: ""
+----
+This would apply the `*base*`, `allow-from-gateway`, `allow-to-databases`, `allow-to-cache`, and `cilium/dns-visibility` policies to the namespace.
