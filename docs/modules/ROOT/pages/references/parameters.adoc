@@ -40,6 +40,12 @@ Policies will no longer be managed and existing policies managed by this compone
 
 === `baseDefaults` label
 
+[WARNING]
+====
+This label is deprecated.
+Use the `set.network-policies.syn.tools/base: ""` label instead.
+====
+
 Only policies required for the OpenShift platform will be created.
 The intra-namespace policy will be removed and the pods in the namespace will be isolated from each other.
 
@@ -134,7 +140,7 @@ Define additional NetworkPolicies or CiliumNetworkPolicies to be used by policy 
 
 [NOTE]
 ====
-Make sure to use the suffix `cilium/` when defining CiliumNetworkPolicies.
+Make sure to use the prefix `cilium/` when defining CiliumNetworkPolicies.
 ====
 
 Also see xref:how-tos/using-customizing-policies.adoc[].

@@ -1,10 +1,10 @@
-= Using and Customizing Policies
+= Using and customizing policies
 
-By installing this component default policies are created in every namespace.
+When installing this component, default policies are created in every namespace.
 These policies are designed to be secure by default, while still allowing essential communication for most applications.
 However, depending on your specific use case, you might want to customize these policies to better fit your application's needs.
 
-== Understanding Default Policies
+== Understanding default policies
 
 The default policies created by this component typically include:
 
@@ -14,7 +14,7 @@ The default policies created by this component typically include:
 The `base` policy is calculated based on the keys in `basePolicy` and can't be fully customized.
 The `default` policy can be customized like every other policy using the `policies` and `policySet` keys in the component configuration.
 
-== Applying Custom Policies to a Namespace
+== Applying custom policies to a namespace
 
 Every non-ignored namespace has the `base` and `default` policies applied by default.
 
@@ -105,6 +105,8 @@ The values are merged into the spec.
 <2> Custom policies can be prefixed with a CNI provider name (e.g. `cilium/`) to indicate that they are specific to that provider.
 This policy will only be created if the CNI provider matches.
 Currently, only Cilium (`cilium/`) is supported.
+CNI provider policies will use provider-specific policy resources.
+For Cilium, the component will generate `CiliumNetworkPolicy` resources.
 <3> Removes the intra-namespace allow-all rule from the `default` policy set.
 Sets are rendered with the commodore https://syn.tools/commodore/reference/commodore-libjsonnet.html#_renderarrayarr[`renderArray(arr)`] function and allows removal of array entries using the `~` operator.
 <4> Keeps the intra-namespace allow-all rule in the `backend` policy set.
