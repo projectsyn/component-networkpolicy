@@ -11,65 +11,79 @@ default::
 [source,yaml]
 ----
 noDefaults: network-policies.syn.tools/no-defaults
+policySetPrefix: set.network-policies.syn.tools/
+## Deprecated
+# Use `base` policy set instead. e.g. `set.network-policies.syn.tools/base: ""`
 baseDefaults: network-policies.syn.tools/base-defaults
+## Deprecated and unused. Here for backwards compatibility as some components still include this label
 purgeDefaults: network-policies.syn.tools/purge-defaults
 purgeNonBase: network-policies.syn.tools/purge-non-base
 ----
 
 Name of the labels to be used in other components.
 
-By default every namespace will get policies required for the OpenShift platform and a policy to allow intra-namespace communication.
 By default, two sets of policies are created in every namespace:
-- `base` policies, which are required for the OpenShift platform to function correctly.
+- `base` policies, which are required for the platform to function correctly.
 - `default` policies, which allow pods in the same namespace to communicate with each other.
 The default policies can be modified with the labels defined in this parameter.
 
+=== `policySetPrefix` label prefix
+
+Custom policy sets can be applied to a namespace by adding a label with this prefix and the name of the policy set as suffix.
+For example, to apply the `ingress` policy set, add the label `set.network-policies.syn.tools/ingress: ""` to the namespace.
+The label value is ignored and can be an empty string.
+
+As soon as any policy set label is applied to a namespace, the `default` policy set is removed unless it is explicitly added again using the corresponding label.
+
 === `noDefaults` label
 
-Policies will no longer be managed.
-The already created policies will stay in place and can be modified by the user or other components.
+Policies will no longer be managed and existing policies managed by this component will be removed in namespaces with this label.
 
 === `baseDefaults` label
 
-Only policies required for the OpenShift platform will be created.
-The intra-namespace policy will no longer be managed by this component and can be modified by the user or other components.
-
-There's no guarantee that pods will be able to communicate with each other even if they are in the same namespace once the intra-namespace policies is modified or removed by the user.
-
-=== `purgeDefaults` label
-
-All managed policies will be purged from the namespace.
-
-=== `purgeNonBase` label
-
-All managed policies except the platform required policies will be purged from the namespace.
-
 [WARNING]
 ====
-The `purge*` labels should always be acompanied by their respective `noDefaults` or `baseDefaults` label.
+This label is deprecated.
+Use the `set.network-policies.syn.tools/base: ""` label instead.
 ====
 
-== `allowNamespaceLabels`
+Only policies required for the OpenShift platform will be created.
+The intra-namespace policy will be removed and the pods in the namespace will be isolated from each other.
+
+=== `purgeDefaults` and `purgeNonBase` labels
+
+Unused and have no effect.
+Purging of policies is the default behavior and can't be disabled.
+
+== `basePolicy.allowNamespaceLabels`
 
 [horizontal]
-type:: list of tuples
-default:: empty list
+type:: dictionary[string](list of tuples|tuples|null)
+default:: `{}`
+example::
++
+[source,yaml]
+----
+allowNamespaceLabels:
+  mylabel:
+    - test.example.net/test-group: group1
+    - test.example.net/test-group: group2
+  myOtherLabel:
+    test.example.net/ingress-group: "group1"
+    test.example.net/ingress-group: "group2"
+  myThirdLabel: null
+----
 
-A list of labels matching namespaces to allow traffic from.
+The key is for easier merging in commodore and has no semantic meaning.
+The value is either a list of tuples, a single tuple or `null`.
+The values are a list of labels matching namespaces to allow traffic from.
 Each list item can contain several key value pairs.
 They result in an `AND` condition.
 Individual list items will result in an `OR` condition.
 
-[source,yaml]
-----
-allowNamespaceLabels:
-  - my-label-a: true
-    my-label-b: true
-  - my-label-c: true
-----
+In the above example, traffic will be allowed if a namespaces has the label `test.example.net/test-group=group1` OR `test.example.net/test-group=group2`.
+Traffic will also be allowed if a namespace has the label `test.example.net/ingress-group=group1` AND `test.example.net/ingress-group=group2`.
 
-In the above example, traffic will be allowed if a namespaces has the label `my-label-a=true` AND `my-label-b=true`.
-Traffic will also be allowed if a namespace is labeled `my-label-c`.
 
 == `ignoredNamespaces`
 
@@ -81,44 +95,7 @@ A list of namespace names where no default NetworkPolicies will be created.
 Default NetworkPolicies will be purged for all namespaces in this list.
 Entries in the list can be removed by adding the entry prefixed with a `~`.
 
-== `networkPlugin`
-
-[horizontal]
-type:: string
-default:: `''`
-
-The network plugin installed on the cluster.
-
-[CAUTION]
-====
-This needs to be set when using the Cilium network plugin.
-Otherwise some policies might not be applied correctly.
-====
-
-== `ciliumClusterID`
-
-[horizontal]
-type:: string
-default:: `''`
-
-This parameter controls whether the component isolates namespaces with the same name from each other in a Cilium cluster mesh.
-The default behavior if the parameter is empty is to allow connectivity between namespaces with the same name across clusters.
-
-If this behavior isn't desired, this parameter can be set to the cluster's Cilium cluster ID (which is configured in parameter `cilium.cilium_helm_values.cluster.name` when using cluster mesh).
-When the parameter isn't empty, the component will adjust the `allow-from-same-namespace` policy with the following snippet:
-
-[source,yaml]
-----
-spec:
- ingress:
- - from:
-   - podSelector:
-       matchLabels:
-         io.cilium.k8s.policy.cluster: <ciliumClusterID> <1>
-----
-<1> `<ciliumClusterID>` is replaced with the string provided in this parameter
-
-== `allowFromNodeLabels`
+== `basePolicy.cniPlugins.cilium.allowFromNodeLabels`
 
 [horizontal]
 type:: dict
@@ -154,14 +131,45 @@ allowFromNodeLabels:
 ----
 ====
 
+== `policies`
+
+[horizontal]
+type:: dict
+default:: `{}`
+
+Define additional NetworkPolicies or CiliumNetworkPolicies to be used by policy sets.
+
+[NOTE]
+====
+Make sure to use the prefix `cilium/` when defining CiliumNetworkPolicies.
+====
+
+Also see xref:how-tos/using-customizing-policies.adoc[].
+
+== `policySets`
+
+[horizontal]
+type:: dict
+default:: `{}`
+
+Define policy sets that can be selected by the label `network-policies.syn.tools/policy-sets`.
+A policy set is an array of policy names defined in `policies`.
+Names can be removed from the default policy sets by prefixing them with a `~`.
+A policy can be part of multiple policy sets, even if those policy sets are applied to the same namespace.
+
+Also see xref:how-tos/using-customizing-policies.adoc[].
+
 == Example
 
 [source,yaml]
 ----
 # Allow traffic from ingress and monitoring
-allowNamespaceLabels:
-  - network.openshift.io/policy-group: monitoring
-  - network.openshift.io/policy-group: ingress
+basePolicy:
+  allowNamespaceLabels:
+    monitoring:
+      - network.openshift.io/policy-group: monitoring
+    ingress:
+      - network.openshift.io/policy-group: ingress
 # Do not create the default policies in the OpenShift namespaces.
 ignoredNamespaces:
   - openshift

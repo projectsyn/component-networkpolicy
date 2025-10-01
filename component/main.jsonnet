@@ -3,10 +3,11 @@ local esp = import 'lib/espejote.libsonnet';
 local kap = import 'lib/kapitan.libjsonnet';
 local kube = import 'lib/kube.libjsonnet';
 
-local resources = import 'espejote-templates/netpol-resources.libsonnet';
-
 local inv = kap.inventory();
 local params = inv.parameters.networkpolicy;
+
+local hasEspejote = std.member(inv.applications, 'espejote');
+local hasCilium = std.member(inv.applications, 'cilium');
 
 local espNamespace = inv.parameters.espejote.namespace;
 local mrName = 'espejote-networkpolicy-sync';
@@ -40,7 +41,7 @@ local espejoteRBAC = [
       {
         apiGroups: [ '' ],
         resources: [ 'namespaces' ],
-        verbs: [ 'get', 'list', 'watch' ],
+        verbs: [ 'get', 'list', 'watch', 'patch' ],
       },
       {
         apiGroups: [ 'espejote.io' ],
@@ -86,19 +87,101 @@ local espejoteRBAC = [
 ];
 
 // Espejote resources
+local _nameNamespaceIsolationBasic = 'namespace-isolation-basic';
+local _nameNamespaceIsolationFull = 'namespace-isolation-full';
+local _nameAllowFromOtherNamespaces = 'allow-from-other-namespaces';
+local _nameAllowFromSameNamespace = 'allow-from-same-namespace';
+local _nameAllowFromClusterNodes = 'allow-from-cluster-nodes';
+
+local _netpolAnnotations = {
+  'syn.tools/source': 'https://github.com/projectsyn/component-networkpolicy.git',
+};
+local _netpolLabels = {
+  'app.kubernetes.io/managed-by': 'espejote',
+  'app.kubernetes.io/part-of': 'syn',
+  'app.kubernetes.io/component': 'networkpolicy',
+};
+
+local internalBasePolicy =
+  local allowNamespaceLabels =
+    local baseLabels = params.basePolicy.allowNamespaceLabels;
+    std.flattenArrays([
+      if std.isArray(baseLabels[k]) then
+        baseLabels[k]
+      else if std.isObject(baseLabels[k]) then
+        [ baseLabels[k] ]
+      else if baseLabels[k] == null then
+        []
+      else
+        error 'basePolicy.allowNamespaceLabels values must be arrays, objects, or null'
+      for k in std.objectFields(baseLabels)
+    ]);
+  {
+    policyTypes: [ 'Ingress' ],
+    ingress: [ {
+      from: [
+        { namespaceSelector: { matchLabels: labels } }
+        for labels in allowNamespaceLabels
+      ],
+    } ],
+    podSelector: {},
+  };
+
+local ciliumInternalBasePolicy = {
+  local nodeLabels = params.basePolicy.cniPlugins.cilium.allowFromNodeLabels,
+  endpointSelector: {},
+  ingress: if std.length(nodeLabels) > 0 then [
+    {
+      // always allow access from local node's host network, e.g. health checks.
+      fromEntities: [ 'host' ],
+    },
+    {
+      fromNodes: [
+        {
+          matchLabels: nodeLabels,
+        },
+      ],
+    },
+  ] else [
+    {
+      fromEntities: [
+        'host',
+        'remote-node',
+      ],
+    },
+  ],
+};
+
+local basePolicies = {
+  'syn-internal-set-base': internalBasePolicy,
+  'cilium/syn-internal-set-base': ciliumInternalBasePolicy,
+};
+
 local jsonnetLibrary = esp.jsonnetLibrary(mrName, espNamespace) {
   spec: {
     data: {
       'config.json': std.manifestJson({
-        labels: params.labels,
-        allowNamespaceLabels: params.allowNamespaceLabels,
+        namespaceLabels: params.labels,
+        netpolAnnotations: _netpolAnnotations,
+        netpolLabels: _netpolLabels,
         ignoredNamespaces: com.renderArray(params.ignoredNamespaces),
-        networkPlugin: std.asciiLower(params.networkPlugin),
-        ciliumClusterID: params.ciliumClusterID,
-        allowFromNodeLabels: params.allowFromNodeLabels,
+        hasCilium: hasCilium,
+        policies: params.policies + basePolicies,
+        policySets: {
+          [set]: com.renderArray(params.policySets[set])
+          for set in std.objectFields(params.policySets)
+          if params.policySets[set] != null
+        } + {
+          base: std.objectFields(basePolicies),
+        },
       }),
-      'resources.libsonnet': importstr 'espejote-templates/netpol-resources.libsonnet',
     },
+  },
+};
+
+local purgeLegacySelector = {
+  matchLabels: {
+    'internal.network-policies.syn.tools/migration-mark-for-purge': 'true',
   },
 };
 
@@ -106,8 +189,13 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
   metadata+: {
     annotations: {
       'syn.tools/description': |||
-        This managed resource purges existing network policies if they are
-        deployed in a namespace that is in the list of ignored namespaces.
+        Manages NetworkPolicies and CiliumNetworkPolicies based on namespace labels.
+
+        With no further configuration, this component will apply a default set of
+        NetworkPolicies to all namespaces.
+
+        To customize the applied policies, you can use labels on namespaces to select
+        additional policy sets. See https://hub.syn.tools/networkpolicy/index.html for details.
       |||,
     },
   },
@@ -120,7 +208,26 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
           kind: 'Namespace',
         },
       },
-    ],
+      {
+        name: 'legacy-netpols',
+        resource: {
+          apiVersion: 'networking.k8s.io/v1',
+          kind: 'NetworkPolicy',
+          namespace: '',
+          labelSelector: purgeLegacySelector,
+        },
+      },
+    ] + if hasCilium then [
+      {
+        name: 'legacy-ciliumnetpols',
+        resource: {
+          apiVersion: 'cilium.io/v2',
+          kind: 'CiliumNetworkPolicy',
+          namespace: '',
+          labelSelector: purgeLegacySelector,
+        },
+      },
+    ] else [],
     triggers: [
       {
         name: 'jslib',
@@ -140,27 +247,27 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
       {
         name: 'netpol',
         watchResource: {
-          apiVersion: resources.allowFromOtherNamespaces.apiVersion,
-          kind: resources.allowFromOtherNamespaces.kind,
-          matchNames: [
-            resources.allowFromOtherNamespaces.metadata.name,
-            resources.allowFromSameNamespace.metadata.name,
-          ],
+          apiVersion: 'networking.k8s.io/v1',
+          kind: 'NetworkPolicy',
+          labelSelector: {
+            matchLabels: _netpolLabels,
+          },
           namespace: '',
         },
       },
+    ] + if hasCilium then [
       {
-        name: 'ciliumpol',
+        name: 'ciliumnetpol',
         watchResource: {
-          apiVersion: resources.allowFromClusterNodes.apiVersion,
-          kind: resources.allowFromClusterNodes.kind,
-          matchNames: [
-            resources.allowFromClusterNodes.metadata.name,
-          ],
+          apiVersion: 'cilium.io/v2',
+          kind: 'CiliumNetworkPolicy',
+          labelSelector: {
+            matchLabels: _netpolLabels,
+          },
           namespace: '',
         },
       },
-    ],
+    ] else [],
     serviceAccountRef: {
       name: espejoteRBAC[0].metadata.name,
     },
@@ -171,11 +278,8 @@ local managedResource = esp.managedResource(mrName, espNamespace) {
   },
 };
 
-// Check if espejote is installed
-local has_espejote = std.member(inv.applications, 'espejote');
-
 // Define outputs below
-if has_espejote then
+if hasEspejote then
   {
     '01_rbac': espejoteRBAC,
     '02_library': jsonnetLibrary,

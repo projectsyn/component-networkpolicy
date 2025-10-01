@@ -11,25 +11,15 @@ This component assumes that a cluster was set up with a https://kubernetes.io/do
 
 An Espejote ManagedResource is used to create the policies.
 The ManagedResource is configured to ignore namespaces having the label `network-policies.syn.tools/no-defaults` (the value doesn't matter).
+Namespaces can also be ignored by listing them in the `ignoredNamespaces` parameter.
 
 [IMPORTANT]
 ====
 The content of the created NetworkPolicies is enforced.
 Changes from other sources will be overwritten.
 If changes to the default policies are required, add the ignore label and create them on your own.
-====
 
-This component also allows to exclude a set of namespaces.
-Those namespaces will receive the `network-policies.syn.tools/no-defaults=true` and `network-policies.syn.tools/purge-defaults=true` labels.
-
-The label `network-policies.syn.tools/purge-defaults=true` results in the active removal of those default policies.
-
-[CAUTION]
-====
-Removing the NetworkPolicies from namespaces labeled `network-policies.syn.tools/purge-defaults=true` is done by name.
-The names removed are `allow-from-same-namespace` and `allow-from-other-namespaces`.
-If similar rules are created in those namespaces, they must have different names.
-Otherwise, they will be removed.
+If you'd rather customize the policies applied by this component, see the xref:how-tos/using-customizing-policies.adoc[].
 ====
 
 See also the xref:references/parameters.adoc[parameters reference].

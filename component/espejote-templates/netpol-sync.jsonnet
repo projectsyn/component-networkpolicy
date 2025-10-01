@@ -1,106 +1,170 @@
 local esp = import 'espejote.libsonnet';
 local config = import 'lib/espejote-networkpolicy-sync/config.json';
-local resources = import 'lib/espejote-networkpolicy-sync/resources.libsonnet';
 
-local isPurgeNonBase(namespace) =
-  std.objectHas(std.get(namespace.metadata, 'labels', {}), config.labels.purgeNonBase);
+local context = esp.context();
 
-local isPurgeDefaults(namespace) =
-  std.member(config.ignoredNamespaces, namespace.metadata.name) ||
-  std.objectHas(std.get(namespace.metadata, 'labels', {}), config.labels.purgeDefaults) ||
-  std.objectHas(std.get(namespace.metadata, 'labels', {}), config.labels.noDefaults);
+local activePoliciesAnnotation = 'network-policies.syn.tools/active-policies';
 
-local isApplyBase(namespace) =
-  std.objectHas(std.get(namespace.metadata, 'labels', {}), config.labels.baseDefaults);
+// Extract the active policy sets from the given namespace object,
+// based on the annotations applied by this ManagedResource.
+local activePolicies(namespace) =
+  local rawSet = std.get(std.get(namespace.metadata, 'annotations', {}), activePoliciesAnnotation, '[]');
+  std.set(std.parseJson(rawSet));
 
-local purgeNonBasePolicies(namespace) = [
-  esp.markForDelete({
-    apiVersion: resources.allowFromSameNamespace.apiVersion,
-    kind: resources.allowFromSameNamespace.kind,
-    metadata: {
-      name: resources.allowFromSameNamespace.metadata.name,
-      namespace: namespace.metadata.name,
-    },
-  }),
-];
+// Extract the desired policy sets from the given namespace object,
+// Returns an empty array if the namespace is in the ignoredNamespaces list or the no-defaults label is set.
+// If no policy sets are set by labels, the default policy sets are returned and the legacy base-defaults label is respected.
+// If any policy set labels are set, those are returned plus the 'base' policy set.
+// It is valid to set the base policy set explicitly via labels.
+//   ignoredNamespaces / no-defaults label -> []
+//   no policy set labels -> [ 'base', 'default' ] or [ 'base' ] if base-defaults label is set
+//   policy set labels -> [ 'base', <policy sets from labels> ]
+//   policy set "base" set -> [ 'base' ]
+local desiredPolicySets(namespace) =
+  local objHasLabel(obj, label) =
+    std.objectHas(std.get(obj.metadata, 'labels', {}), label);
 
-local purgeDefaultPolicies(namespace) =
-  purgeNonBasePolicies(namespace) + [
-    esp.markForDelete({
-      apiVersion: resources.allowFromOtherNamespaces.apiVersion,
-      kind: resources.allowFromOtherNamespaces.kind,
-      metadata: {
-        name: resources.allowFromOtherNamespaces.metadata.name,
-        namespace: namespace.metadata.name,
-      },
-    }),
-    esp.markForDelete({
-      apiVersion: resources.allowFromClusterNodes.apiVersion,
-      kind: resources.allowFromClusterNodes.kind,
-      metadata: {
-        name: resources.allowFromClusterNodes.metadata.name,
-        namespace: namespace.metadata.name,
-      },
-    }),
-  ];
+  local defaultPolicySets =
+    if objHasLabel(namespace, config.namespaceLabels.baseDefaults) then
+      [ 'base' ]
+    else
+      [ 'base', 'default' ];
 
-local applyBasePolicies(namespace) = [
-  resources.allowFromOtherWithSpec {
+  // Policy sets based on labels starting with params.labels.policySetPrefix.
+  //   labels:
+  //     set.example.io/airlock: ""
+  //     set.example.io/myapp: ""
+  // would return the policy sets `["airlock", "myapp"]`.
+  // The configured prefix is suffixed with a '/' if it does not already end with one.
+  local policySetsFromLabel =
+    local prefix = if std.endsWith(config.namespaceLabels.policySetPrefix, '/') then
+      config.namespaceLabels.policySetPrefix
+    else
+      config.namespaceLabels.policySetPrefix + '/';
+
+    [
+      lbl[std.length(prefix):]
+      for lbl in std.objectFields(std.get(namespace.metadata, 'labels', {}))
+      if std.startsWith(lbl, prefix)
+    ];
+
+  if std.member(config.ignoredNamespaces, namespace.metadata.name) || objHasLabel(namespace, config.namespaceLabels.noDefaults) then
+    []
+  else if std.length(policySetsFromLabel) > 0 then
+    std.set([ 'base' ] + policySetsFromLabel)
+  else
+    std.set(defaultPolicySets);
+
+local isCiliumPolicy(policyName) =
+  std.startsWith(policyName, 'cilium/');
+
+local cniMatches(policyName) =
+  if isCiliumPolicy(policyName) then
+    config.hasCilium
+  else
+    true;
+
+// Generate policy sets.
+local generatePolicyMetadata(policyName, namespace) =
+  (if isCiliumPolicy(policyName) then {
+     apiVersion: 'cilium.io/v2',
+     kind: 'CiliumNetworkPolicy',
+     metadata+: {
+       name: std.strReplace(policyName, 'cilium/', ''),
+     },
+   } else {
+     apiVersion: 'networking.k8s.io/v1',
+     kind: 'NetworkPolicy',
+     metadata: {
+       name: policyName,
+     },
+   }) + {
     metadata+: {
+      annotations: config.netpolAnnotations,
+      labels: config.netpolLabels,
       namespace: namespace.metadata.name,
     },
-  },
-] + if config.networkPlugin == 'cilium' then [
-  resources.allowFromNodesWithSpec {
-    metadata+: {
-      namespace: namespace.metadata.name,
-    },
-  },
-] else [];
+  };
 
-local applyDefaultPolicies(namespace) =
-  applyBasePolicies(namespace) + [
-    resources.allowFromSameWithSpec {
-      metadata+: {
-        namespace: namespace.metadata.name,
-      },
-    },
-  ];
+local generatePolicy(policyName, namespace) =
+  generatePolicyMetadata(policyName, namespace) {
+    spec: config.policies[policyName],
+  };
 
+local purgePolicy(policyName, namespace) =
+  esp.markForDelete(generatePolicyMetadata(policyName, namespace));
+
+// Reconcile the given namespace.
 local reconcileNamespace(namespace) =
-  // Purge NetworkPolicies and CiliumNetworkPolicies if the namespace
-  // has the purgeNonBase label.
-  if isPurgeNonBase(namespace) then purgeNonBasePolicies(namespace)
-  // Purge NetworkPolicies and CiliumNetworkPolicies if the namespace
-  // is either in the ignoredNamespaces list or has the purgeDefaults label.
-  else if isPurgeDefaults(namespace) then purgeDefaultPolicies(namespace)
-  // Apply base NetworkPolicies and CiliumNetworkPolicies if the namespace
-  // has the baseDefaults label.
-  else if isApplyBase(namespace) then applyBasePolicies(namespace)
-  // Apply default NetworkPolicies and CiliumNetworkPolicies if the namespace
-  // nothing else applies.
-  else applyDefaultPolicies(namespace);
+  local desiredPolicies = std.set(std.filter(
+    function(policy) std.get(config.policies, policy) != null,
+    std.flattenArrays([
+      config.policySets[set]
+      for set in desiredPolicySets(namespace)
+      if std.get(config.policySets, set) != null
+    ])
+  ));
+  // Generate array of NetworkPolicies for the given policy set.
+  [
+    generatePolicy(policy, namespace)
+    for policy in desiredPolicies
+    if cniMatches(policy)
+  ]
+  // Generate array of NetworkPolicies to be deleted for the given policy set.
+  +
+  [
+    purgePolicy(policy, namespace)
+    for policy in std.setDiff(activePolicies(namespace), desiredPolicies)
+    if cniMatches(policy)
+  ]
+  // Generate annotation for the given namespace containing the new active policy sets.
+  +
+  [ {
+    apiVersion: 'v1',
+    kind: 'Namespace',
+    metadata: {
+      annotations: {
+        [activePoliciesAnnotation]: std.manifestJsonMinified(desiredPolicies),
+      },
+      name: namespace.metadata.name,
+    },
+  } ];
 
 // check if the object is getting deleted by checking if it has
 // `metadata.deletionTimestamp`.
 local inDelete(obj) = std.get(obj.metadata, 'deletionTimestamp', '') != '';
 
+local legacyPolicyPurge = [
+  esp.markForDelete(pol)
+  for pol in std.get(context, 'legacy-netpols', []) + std.get(context, 'legacy-ciliumnetpols', [])
+];
+
 // Do the thing
 if esp.triggerName() == 'namespace' then (
   // Handle single namespace update on namespace trigger
   local nsTrigger = esp.triggerData();
-  // nsTrigger can be null if we're called when the namespace is getting
+  // nsTrigger.resource can be null if we're called when the namespace is getting
   // deleted. If it's not null, we still don't want to do anything when the
   // namespace is getting deleted.
-  if nsTrigger != null && !inDelete(nsTrigger.resource) then
+  if nsTrigger.resource != null && !inDelete(nsTrigger.resource) then
     reconcileNamespace(nsTrigger.resource)
+) else if esp.triggerName() == 'netpol' || esp.triggerName() == 'ciliumnetpol' then (
+  // Handle single namespace update on netpol or ciliumnetpol trigger
+  local namespace = esp.triggerData().resourceEvent.namespace;
+  std.flattenArrays([
+    reconcileNamespace(ns)
+    for ns in context.namespaces
+    if ns.metadata.name == namespace && !inDelete(ns)
+  ])
 ) else (
   // Reconcile all namespaces for jsonnetlibrary update or managedresource
   // reconcile.
-  local namespaces = esp.context().namespaces;
+  local namespaces = context.namespaces;
   std.flattenArrays([
     reconcileNamespace(ns)
     for ns in namespaces
     if !inDelete(ns)
   ])
+  +
+  legacyPolicyPurge
 )

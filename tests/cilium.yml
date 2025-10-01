@@ -1,4 +1,5 @@
 applications:
+  - cilium
   - espejote
 
 parameters:
@@ -16,6 +17,9 @@ parameters:
       - my-ignored-namespace
       - my-other-ignored
       - ~my-other-ignored
-    allowNamespaceLabels:
-      - test.example.net/test-group: main
     networkPlugin: Cilium
+
+    basePolicy:
+      allowNamespaceLabels:
+        test-group:
+          - test.example.net/test-group: main

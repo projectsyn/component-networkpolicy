@@ -23,6 +23,7 @@ rules:
       - get
       - list
       - watch
+      - patch
   - apiGroups:
       - espejote.io
     resourceNames:
