@@ -20,6 +20,7 @@ Every non-ignored namespace has the `base` and `default` policies applied by def
 
 Custom policy sets can be applied by labeling the namespace with a `set.network-policies.syn.tools/<policy-set-name>: ""` label.
 Where `<policy-set-name>` corresponds to the name of the policy set defined in the component configuration.
+The label value is ignored and can be an empty string.
 The `default` policy is removed as soon as any other policy set is applied to the namespace and can be re-applied by adding the `set.network-policies.syn.tools/default: ""` label to the namespace.
 The `base` policy is always applied and can't be removed.
 

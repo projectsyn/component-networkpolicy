@@ -45,7 +45,7 @@ local desiredPolicySets(namespace) =
     [
       lbl[std.length(prefix):]
       for lbl in std.objectFields(std.get(namespace.metadata, 'labels', {}))
-      if std.startsWith(lbl, prefix) && (namespace.metadata.labels[lbl] == 'true' || namespace.metadata.labels[lbl] == '')
+      if std.startsWith(lbl, prefix)
     ];
 
   if std.member(config.ignoredNamespaces, namespace.metadata.name) || objHasLabel(namespace, config.namespaceLabels.noDefaults) then

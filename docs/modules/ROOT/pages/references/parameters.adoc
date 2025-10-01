@@ -31,6 +31,7 @@ The default policies can be modified with the labels defined in this parameter.
 
 Custom policy sets can be applied to a namespace by adding a label with this prefix and the name of the policy set as suffix.
 For example, to apply the `ingress` policy set, add the label `set.network-policies.syn.tools/ingress: ""` to the namespace.
+The label value is ignored and can be an empty string.
 
 As soon as any policy set label is applied to a namespace, the `default` policy set is removed unless it is explicitly added again using the corresponding label.
 
