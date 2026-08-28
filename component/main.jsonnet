@@ -129,11 +129,19 @@ local internalBasePolicy =
 
 local ciliumInternalBasePolicy = {
   local nodeLabels = params.basePolicy.cniPlugins.cilium.allowFromNodeLabels,
+  // NOTE(sg): We don't allow component users to arbitrarily remove entities
+  // from the policy through parameter `allowFromEntities`.
+  local baseEntities = std.set(
+    [ 'host', 'remote-node' ]
+    + params.basePolicy.cniPlugins.cilium.allowFromEntities
+  ),
   endpointSelector: {},
   ingress: if std.length(nodeLabels) > 0 then [
     {
-      // always allow access from local node's host network, e.g. health checks.
-      fromEntities: [ 'host' ],
+      // if user specifies node labels from which to allow access, remove
+      // `remote-node` entity, so the `fromNodes` selector actually has an
+      // effect.
+      fromEntities: std.setDiff(baseEntities, [ 'remote-node' ]),
     },
     {
       fromNodes: [
@@ -144,10 +152,7 @@ local ciliumInternalBasePolicy = {
     },
   ] else [
     {
-      fromEntities: [
-        'host',
-        'remote-node',
-      ],
+      fromEntities: baseEntities,
     },
   ],
 };

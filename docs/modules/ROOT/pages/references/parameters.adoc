@@ -95,6 +95,31 @@ A list of namespace names where no default NetworkPolicies will be created.
 Default NetworkPolicies will be purged for all namespaces in this list.
 Entries in the list can be removed by adding the entry prefixed with a `~`.
 
+== `basePolicy.cniPlugins.cilium.allowFromEntities`
+
+[horizontal]
+type:: list
+default:: `[]`
+
+List of additional https://docs.cilium.io/en/v1.20/gettingstarted/terminology/#special-identities[Cilium network entities] which should be allowed to access all namespaces.
+
+For example, special entity `ingress` must be allowed on clusters that use the Cilium ingress controller, in order to enable ingress connectivity for isolated namespaces.
+
+[TIP]
+====
+The base policy unconditionally allows traffic from special identity `host`.
+This is required in order for container HTTP health checks to work correctly.
+
+By default, the policy also allows traffic from special identity `remote-node`.
+====
+
+[NOTE]
+====
+The parameter doesn't allow removing entities from the policy.
+
+See parameter `basePolicy.cniPlugins.cilium.allowFromNodeLabels` if you want to restrict access to a subset of remote nodes.
+====
+
 == `basePolicy.cniPlugins.cilium.allowFromNodeLabels`
 
 [horizontal]

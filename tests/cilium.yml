@@ -23,3 +23,7 @@ parameters:
       allowNamespaceLabels:
         test-group:
           - test.example.net/test-group: main
+      cniPlugins:
+        cilium:
+          allowFromEntities:
+            - ingress
