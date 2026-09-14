@@ -46,11 +46,7 @@ spec:
               },
               "syn-internal-set-base": {
                   "ingress": [
-                      {
-                          "from": [
 
-                          ]
-                      }
                   ],
                   "podSelector": {
 
