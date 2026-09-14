@@ -1,13 +1,13 @@
 {
   "template": "https://github.com/projectsyn/commodore-component-template.git",
-  "commit": "5ae57721558399419f867334e31d23a7f7a892ba",
+  "commit": "4c5e2e3302ad838781795162fca1cd512139129c",
   "checkout": "main",
   "context": {
     "cookiecutter": {
       "name": "NetworkPolicy",
       "slug": "networkpolicy",
       "parameter_key": "networkpolicy",
-      "test_cases": "defaults cilium cilium-isolation",
+      "test_cases": "defaults cilium cilium-isolation full",
       "add_lib": "n",
       "add_pp": "n",
       "add_golden": "y",
@@ -25,7 +25,7 @@
       "github_name": "component-networkpolicy",
       "github_url": "https://github.com/projectsyn/component-networkpolicy",
       "_template": "https://github.com/projectsyn/commodore-component-template.git",
-      "_commit": "5ae57721558399419f867334e31d23a7f7a892ba"
+      "_commit": "4c5e2e3302ad838781795162fca1cd512139129c"
     }
   },
   "directory": null
