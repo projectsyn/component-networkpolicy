@@ -11,17 +11,4 @@ parameters:
   espejote:
     namespace: syn-espejote
 
-  networkpolicy:
-    policySets:
-      default:
-        - my-custom-default
-      airlock:
-        - allow-from-airlock
-
-    ignoredNamespaces:
-      - my-ignored-namespace
-
-    basePolicy:
-      allowNamespaceLabels:
-        test-group:
-          - test.example.net/test-group: main
+  networkpolicy: {}

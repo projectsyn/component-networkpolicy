@@ -13,7 +13,7 @@ spec:
       {
           "hasCilium": false,
           "ignoredNamespaces": [
-              "my-ignored-namespace"
+
           ],
           "namespaceLabels": {
               "baseDefaults": "network-policies.syn.tools/base-defaults",
@@ -48,13 +48,7 @@ spec:
                   "ingress": [
                       {
                           "from": [
-                              {
-                                  "namespaceSelector": {
-                                      "matchLabels": {
-                                          "test.example.net/test-group": "main"
-                                      }
-                                  }
-                              }
+
                           ]
                       }
                   ],
@@ -86,15 +80,11 @@ spec:
               }
           },
           "policySets": {
-              "airlock": [
-                  "allow-from-airlock"
-              ],
               "base": [
                   "cilium/syn-internal-set-base",
                   "syn-internal-set-base"
               ],
               "default": [
-                  "my-custom-default",
                   "syn-set-default-allow-intra-namespace"
               ]
           }
