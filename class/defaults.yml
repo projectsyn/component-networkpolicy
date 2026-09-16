@@ -32,4 +32,5 @@ parameters:
       allowNamespaceLabels: {}
       cniPlugins:
         cilium:
+          allowFromEntities: []
           allowFromNodeLabels: {}
