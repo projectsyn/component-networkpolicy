@@ -116,14 +116,27 @@ local internalBasePolicy =
         error 'basePolicy.allowNamespaceLabels values must be arrays, objects, or null'
       for k in std.objectFields(baseLabels)
     ]);
-  {
-    policyTypes: [ 'Ingress' ],
-    ingress: [ {
+
+  // NOTE(sg): We must set `spec.ingress=[]` if we don't want to allow traffic
+  // from any other namespaces (i.e. when allowNamespaceLabels is empty after
+  // preprocessing).
+  // If we don't handle empty allowNamespaceLabels specially, the logic that
+  // renders the `from` clause results in a base policy which has
+  // `spec.ingress=[{from: []}]` which gets trimmed to `spec.ingress=[{}]` by
+  // the Kubernetes API server which ultimately allows access from all other
+  // namespaces.
+  local ingress = if std.length(allowNamespaceLabels) > 0 then [
+    {
       from: [
         { namespaceSelector: { matchLabels: labels } }
         for labels in allowNamespaceLabels
       ],
-    } ],
+    },
+  ] else [];
+
+  {
+    policyTypes: [ 'Ingress' ],
+    ingress: ingress,
     podSelector: {},
   };
 
